@@ -40,7 +40,7 @@ func (g *gitfs) Open(name string) (File, error) {
 	cmd := exec.Command("git", "show", g.rev+":"+name)
 	buf, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, os.ErrNotExist
 	}
 	return memfile{
 		Buffer: bytes.NewBuffer(buf),
