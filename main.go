@@ -2,40 +2,75 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
 func main() {
-	// TODO!
-	// os.Exit(testableMain(os.Args[1:], os.Stdin))
+	rev := *flag.String("rev", "HEAD", "The revision of CODENOTIFY files to use. This is generally the base revision of a change.")
+	format := *flag.String("format", "text", "The format of the output: text or markdown")
+
+	flag.Parse()
+
+	paths, err := readLines(os.Stdin)
+	if err != nil {
+		fmt.Println("error reading stdin:", err)
+		os.Exit(1)
+	}
+
+	notifs, err := notifications(&gitfs{rev: rev}, paths)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	if err := printNotifications(os.Stdout, format, notifs); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
-// func testableMain(args []string, stdin io.Reader) int {
-// 	scanner := bufio.NewScanner(stdin)
-// 	for scanner.Scan() {
-// 		fmt.Println(scanner.Text())
-// 	}
+func printNotifications(w io.Writer, format string, notifs map[string][]string) error {
+	subs := []string{}
+	for sub := range notifs {
+		subs = append(subs, sub)
+	}
+	sort.Strings(subs)
 
-// 	if err := scanner.Err(); err != nil {
-// 		log.Println(err)
-// 		return 1
-// 	}
-
-// 	return 0
-// }
-
-type FS interface {
-	Open(name string) (File, error)
+	switch format {
+	case "text":
+		for _, sub := range subs {
+			files := notifs[sub]
+			fmt.Fprintln(w, sub, "->", strings.Join(files, ", "))
+		}
+		return nil
+	case "markdown":
+		fmt.Fprintf(w, "# CODENOTIFY report\n\n")
+		fmt.Fprintf(w, "| Notify | File(s) |\n")
+		fmt.Fprintf(w, "|-|-|\n")
+		for _, sub := range subs {
+			files := notifs[sub]
+			fmt.Fprintf(w, "| %s | %s |\n", sub, strings.Join(files, ", "))
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported format: %s", format)
+	}
 }
 
-type File interface {
-	Stat() (os.FileInfo, error)
-	Read([]byte) (int, error)
-	Close() error
+func readLines(r io.Reader) ([]string, error) {
+	lines := []string{}
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+	}
+	return lines, scanner.Err()
 }
 
 func notifications(fs FS, paths []string) (map[string][]string, error) {
@@ -49,7 +84,6 @@ func notifications(fs FS, paths []string) (map[string][]string, error) {
 		for _, sub := range subs {
 			notifications[sub] = append(notifications[sub], path)
 		}
-
 	}
 	return notifications, nil
 
@@ -83,7 +117,6 @@ func subscribers(fs FS, path string) ([]string, error) {
 				continue
 			case 1:
 				return nil, fmt.Errorf("expected at least two fields for rule in %s: %s", rulefilepath, rule)
-
 			}
 
 			rel, err := filepath.Rel(base, path)
