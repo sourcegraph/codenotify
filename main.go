@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -55,12 +56,13 @@ func notifications(fs FS, paths []string) (map[string][]string, error) {
 }
 
 func subscribers(fs FS, path string) ([]string, error) {
-	parts := strings.Split(path, string(os.PathSeparator))
-
 	subscribers := []string{}
+
+	parts := strings.Split(path, string(os.PathSeparator))
 	for i := range parts {
 		base := filepath.Join(parts[:i]...)
 		rulefilepath := filepath.Join(base, "CODENOTIFY")
+
 		rulefile, err := fs.Open(rulefilepath)
 		if err != nil {
 			if err == os.ErrNotExist {
@@ -68,12 +70,20 @@ func subscribers(fs FS, path string) ([]string, error) {
 			}
 			return nil, err
 		}
+
 		scanner := bufio.NewScanner(rulefile)
 		for scanner.Scan() {
 			rule := scanner.Text()
+			rule = trimComment(rule)
+
 			fields := strings.Fields(rule)
-			if len(fields) < 2 {
+			switch len(fields) {
+			case 0:
+				// skip blank line
+				continue
+			case 1:
 				return nil, fmt.Errorf("expected at least two fields for rule in %s: %s", rulefilepath, rule)
+
 			}
 
 			rel, err := filepath.Rel(base, path)
@@ -81,12 +91,12 @@ func subscribers(fs FS, path string) ([]string, error) {
 				return nil, err
 			}
 
-			matched, err := filepath.Match(fields[0], rel)
+			re, err := patternToRegexp(fields[0])
 			if err != nil {
-				return nil, fmt.Errorf("invalid match pattern in %s: %s ", rulefilepath, rule)
+				return nil, fmt.Errorf("invalid pattern in %s: %s: %w", rulefilepath, rule, err)
 			}
 
-			if matched {
+			if re.MatchString(rel) {
 				subscribers = append(subscribers, fields[1:]...)
 			}
 		}
@@ -94,8 +104,28 @@ func subscribers(fs FS, path string) ([]string, error) {
 		if err := scanner.Err(); err != nil {
 			return nil, err
 		}
-
 	}
 
 	return subscribers, nil
+}
+
+func trimComment(s string) string {
+	if i := strings.Index(s, "#"); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
+
+func patternToRegexp(pattern string) (*regexp.Regexp, error) {
+	if pattern[len(pattern)-1:] == "/" {
+		pattern += "**"
+	}
+	pattern = regexp.QuoteMeta(pattern)
+	pattern = strings.ReplaceAll(pattern, `/\*\*/`, "/([^/]*/)*")
+	pattern = strings.ReplaceAll(pattern, `\*\*/`, "([^/]+/)*")
+	pattern = strings.ReplaceAll(pattern, `/\*\*`, ".*")
+	pattern = strings.ReplaceAll(pattern, `\*\*`, ".*")
+	pattern = strings.ReplaceAll(pattern, `\*`, "[^/]*")
+	pattern = "^" + pattern + "$"
+	return regexp.Compile(pattern)
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// memfs is an in-memory implementation of the FS interface.
 type memfs map[string]string
 
 func (m memfs) paths() []string {
@@ -52,55 +53,277 @@ func TestNotifications(t *testing.T) {
 		err           error
 	}{
 		{
-			name: "wildcard flat",
+			name: "file.md",
 			fs: memfs{
-				"CODENOTIFY": "* @allnotify\n",
-				"file.js":    "",
-				"file.go":    "",
+				"CODENOTIFY":      "file.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
 			},
 			notifications: map[string][]string{
-				"@allnotify": {"CODENOTIFY", "file.js", "file.go"},
+				"@notify": {"file.md"},
+			},
+		},
+		{
+			name: "whitespace",
+			fs: memfs{
+				"CODENOTIFY":      "\n\nfile.md @notify\n\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"file.md"},
+			},
+		},
+		{
+			name: "comments",
+			fs: memfs{
+				"CODENOTIFY": "#comment\n" +
+					"file.md @notify #comment\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"file.md"},
+			},
+		},
+		{
+			name: "*",
+			fs: memfs{
+				"CODENOTIFY":      "* @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"CODENOTIFY", "file.md"},
+			},
+		},
+		{
+			name: "dir/*",
+			fs: memfs{
+				"CODENOTIFY":      "dir/* @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"dir/file.md"},
+			},
+		},
+		{
+			name: "**",
+			fs: memfs{
+				"CODENOTIFY":      "** @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"CODENOTIFY", "file.md", "dir/file.md", "dir/dir/file.md"},
+			},
+		},
+		{
+			name: "**/*", // same as **
+			fs: memfs{
+				"CODENOTIFY":      "**/* @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"CODENOTIFY", "file.md", "dir/file.md", "dir/dir/file.md"},
+			},
+		},
+		{
+			name: "**/file.md",
+			fs: memfs{
+				"CODENOTIFY":      "**/file.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"file.md", "dir/file.md", "dir/dir/file.md"},
+			},
+		},
+		{
+			name: "dir/**",
+			fs: memfs{
+				"CODENOTIFY":      "dir/** @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"dir/file.md", "dir/dir/file.md"},
+			},
+		},
+		{
+			name: "dir/", // same as "dir/**"
+			fs: memfs{
+				"CODENOTIFY":      "dir/ @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"dir/file.md", "dir/dir/file.md"},
+			},
+		},
+		{
+			name: "dir/**/file.md",
+			fs: memfs{
+				"CODENOTIFY":      "dir/**/file.md @notify\n",
+				"file.md":         "",
+				"dirfile.md":      "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"dir/file.md", "dir/dir/file.md"},
 			},
 		},
 		{
 			name: "multiple subscribers",
 			fs: memfs{
 				"CODENOTIFY": "* @alice @bob\n",
-				"file.js":    "",
-				"file.go":    "",
+				"file.md":    "",
 			},
 			notifications: map[string][]string{
-				"@alice": {"CODENOTIFY", "file.js", "file.go"},
-				"@bob":   {"CODENOTIFY", "file.js", "file.go"},
+				"@alice": {"CODENOTIFY", "file.md"},
+				"@bob":   {"CODENOTIFY", "file.md"},
 			},
 		},
-		// {
-		// 	name: "all",
-		// 	files: map[string]string{
-		// 		"CODENOTIFY": "\n" +
-		// 			"* @allnotify\n" +
-		// 			"*.go @gonotify\n" +
-		// 			"*.js @jsnotify\n",
-		// 		"file.md": "",
-		// 		"file.js": "",
-		// 		"file.go": "",
-		// 		"dir/CODENOTIFY": "\n" +
-		// 			"* @dirnotify\n" +
-		// 			"*.go @dirgonotify\n" +
-		// 			"*.js @dirjsnotify\n",
-		// 		"dir/file.md": "",
-		// 		"dir/file.go": "",
-		// 		"dir/file.js": "",
-		// 	},
-		// 	notifications: map[string][]string{
-		// 		"@allnotify":   {"file.md", "file.js", "file.go", "dir/file.md", "dir/file.go", "dir/file.js"},
-		// 		"@gonotify":    {"file.go", "dir/file.go"},
-		// 		"@jsnotify":    {"file.js", "dir/file.js"},
-		// 		"@dirnotify":   {"dir/file.md", "dir/file.go", "dir/file.js"},
-		// 		"@dirgonotify": {"dir/file.go"},
-		// 		"@dirjsnotify": {"dir/file.js"},
-		// 	},
-		// },
+		{
+			name: "multiple CODENOTIFY",
+			fs: memfs{
+				"CODENOTIFY": "\n" +
+					"* @rootany\n" +
+					"*.go @rootgo\n" +
+					"*.js @rootjs\n" +
+					"**/* @all\n" +
+					"**/*.go @allgo\n" +
+					"**/*.js @alljs\n",
+				"file.md": "",
+				"file.js": "",
+				"file.go": "",
+				"dir/CODENOTIFY": "\n" +
+					"* @dir/any\n" +
+					"*.go @dir/go\n" +
+					"*.js @dir/js\n" +
+					"**/* @dir/all\n" +
+					"**/*.go @dir/allgo\n" +
+					"**/*.js @dir/alljs\n",
+				"dir/file.md": "",
+				"dir/file.go": "",
+				"dir/file.js": "",
+				"dir/dir/CODENOTIFY": "\n" +
+					"* @dir/dir/any\n" +
+					"*.go @dir/dir/go\n" +
+					"*.js @dir/dir/js\n" +
+					"**/* @dir/dir/all\n" +
+					"**/*.go @dir/dir/allgo\n" +
+					"**/*.js @dir/dir/alljs\n",
+				"dir/dir/file.md": "",
+				"dir/dir/file.go": "",
+				"dir/dir/file.js": "",
+			},
+			notifications: map[string][]string{
+				"@all": {
+					"CODENOTIFY",
+					"file.md",
+					"file.js",
+					"file.go",
+					"dir/CODENOTIFY",
+					"dir/file.md",
+					"dir/file.go",
+					"dir/file.js",
+					"dir/dir/CODENOTIFY",
+					"dir/dir/file.md",
+					"dir/dir/file.go",
+					"dir/dir/file.js",
+				},
+				"@allgo": {
+					"file.go",
+					"dir/file.go",
+					"dir/dir/file.go",
+				},
+				"@alljs": {
+					"file.js",
+					"dir/file.js",
+					"dir/dir/file.js",
+				},
+				"@rootany": {
+					"CODENOTIFY",
+					"file.md",
+					"file.js",
+					"file.go",
+				},
+				"@rootgo": {
+					"file.go",
+				},
+				"@rootjs": {
+					"file.js",
+				},
+				"@dir/all": {
+					"dir/CODENOTIFY",
+					"dir/file.md",
+					"dir/file.go",
+					"dir/file.js",
+					"dir/dir/CODENOTIFY",
+					"dir/dir/file.md",
+					"dir/dir/file.go",
+					"dir/dir/file.js",
+				},
+				"@dir/allgo": {
+					"dir/file.go",
+					"dir/dir/file.go",
+				},
+				"@dir/alljs": {
+					"dir/file.js",
+					"dir/dir/file.js",
+				},
+				"@dir/any": {
+					"dir/CODENOTIFY",
+					"dir/file.md",
+					"dir/file.js",
+					"dir/file.go",
+				},
+				"@dir/go": {
+					"dir/file.go",
+				},
+				"@dir/js": {
+					"dir/file.js",
+				},
+				"@dir/dir/all": {
+					"dir/dir/CODENOTIFY",
+					"dir/dir/file.md",
+					"dir/dir/file.go",
+					"dir/dir/file.js",
+				},
+				"@dir/dir/allgo": {
+					"dir/dir/file.go",
+				},
+				"@dir/dir/alljs": {
+					"dir/dir/file.js",
+				},
+				"@dir/dir/any": {
+					"dir/dir/CODENOTIFY",
+					"dir/dir/file.md",
+					"dir/dir/file.js",
+					"dir/dir/file.go",
+				},
+				"@dir/dir/go": {
+					"dir/dir/file.go",
+				},
+				"@dir/dir/js": {
+					"dir/dir/file.js",
+				},
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -111,7 +334,9 @@ func TestNotifications(t *testing.T) {
 				t.Errorf("expected error %s; got %s", test.err, err)
 			}
 
+			subs := map[string]struct{}{}
 			for subscriber, actualfiles := range notifs {
+				subs[subscriber] = struct{}{}
 				expectedfiles := test.notifications[subscriber]
 				sort.Strings(expectedfiles)
 				sort.Strings(actualfiles)
@@ -121,6 +346,10 @@ func TestNotifications(t *testing.T) {
 			}
 
 			for subscriber, expectedfiles := range test.notifications {
+				if _, ok := subs[subscriber]; ok {
+					// avoid duplicate errors
+					continue
+				}
 				actualfiles := notifs[subscriber]
 				sort.Strings(expectedfiles)
 				sort.Strings(actualfiles)
