@@ -33,11 +33,12 @@ func (m memfile) Stat() (os.FileInfo, error) {
 
 // gitfs implements the FS interface for files at a specific git revision.
 type gitfs struct {
+	cwd string
 	rev string
 }
 
 func (g *gitfs) Open(name string) (File, error) {
-	cmd := exec.Command("git", "show", g.rev+":"+name)
+	cmd := exec.Command("git", "-C", g.cwd, "show", g.rev+":"+name)
 	buf, err := cmd.Output()
 	if err != nil {
 		return nil, os.ErrNotExist

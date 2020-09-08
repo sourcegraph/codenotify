@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	cwd := *flag.String("cwd", "", "The working directory to use.")
 	rev := *flag.String("rev", "HEAD", "The revision of CODENOTIFY files to use. This is generally the base revision of a change.")
 	format := *flag.String("format", "text", "The format of the output: text or markdown")
 
@@ -22,6 +23,7 @@ func main() {
 		stdin:  os.Stdin,
 		stdout: os.Stdout,
 		stderr: os.Stderr,
+		cwd:    cwd,
 		rev:    rev,
 		format: format,
 	})
@@ -31,6 +33,7 @@ type mainArgs struct {
 	stdin  io.Reader
 	stdout io.Writer
 	stderr io.Writer
+	cwd    string
 	rev    string
 	format string
 }
@@ -43,7 +46,7 @@ func testableMain(args mainArgs) {
 		os.Exit(1)
 	}
 
-	notifs, err := notifications(&gitfs{rev: args.rev}, paths)
+	notifs, err := notifications(&gitfs{cwd: args.cwd, rev: args.rev}, paths)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
