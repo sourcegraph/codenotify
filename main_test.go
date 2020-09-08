@@ -2,12 +2,102 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 )
+
+func TestMain(t *testing.T) {
+	tests := []struct {
+		name   string
+		rev    string
+		format string
+		files  map[string]string
+		stdin  []string
+		stdout []string
+		stderr []string
+	}{
+		{
+			name:   "one file",
+			rev:    "HEAD",
+			format: "text",
+			files: map[string]string{
+				"CODENOTIFY": "**/*.md @markdown",
+				"file.md":    "",
+			},
+			stdin: []string{
+				"file.md",
+			},
+			stdout: []string{
+				"@markdown -> file.md",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+
+			gitroot, err := ioutil.TempDir("", "codenotify")
+			if err != nil {
+				t.Fatalf("unable to create temporary directory: %s", err)
+			}
+			defer os.RemoveAll(gitroot)
+
+			if err := os.Chdir(gitroot); err != nil {
+				t.Fatalf("unable to change working directory to %s: %s", gitroot, err)
+			}
+
+			for file, content := range test.files {
+				dir := filepath.Dir(file)
+				if err := os.MkdirAll(dir, 0700); err != nil {
+					t.Fatalf("unable to make directory %s: %s", dir, err)
+				}
+
+				if err := ioutil.WriteFile(file, []byte(content), 0666); err != nil {
+					t.Fatalf("unable to write file %s: %s", file, err)
+				}
+			}
+
+			if err := exec.Command("git", "init").Run(); err != nil {
+				t.Fatalf("unable to git init: %s", err)
+			}
+
+			if err := exec.Command("git", "add", ".").Run(); err != nil {
+				t.Fatalf("unable to git add: %s", err)
+			}
+
+			if err := exec.Command("git", "commit", "-m", "'init'").Run(); err != nil {
+				t.Fatalf("unable to git commit: %s", err)
+			}
+
+			stdout := &bytes.Buffer{}
+			stderr := &bytes.Buffer{}
+
+			testableMain(mainArgs{
+				stdin:  bytes.NewBufferString(joinLines(test.stdin)),
+				stdout: stdout,
+				stderr: stderr,
+				rev:    test.rev,
+				format: test.format,
+			})
+
+			expectedStdout := joinLines(test.stdout)
+			if stdout.String() != expectedStdout {
+				t.Errorf("want stdout:\n%s\ngot:\n%s", expectedStdout, stdout.String())
+			}
+
+			expectedStderr := joinLines(test.stderr)
+			if stderr.String() != expectedStderr {
+				t.Errorf("want stderr:\n%s\ngot:\n%s", expectedStderr, stderr.String())
+			}
+		})
+	}
+}
 
 func TestPrintNotifications(t *testing.T) {
 	tests := []struct {
@@ -63,15 +153,20 @@ func TestPrintNotifications(t *testing.T) {
 				t.Errorf("expected error %q; got nil", test.err)
 			}
 
-			expectedOutput := strings.Join(test.output, "\n")
-			if expectedOutput != "" {
-				expectedOutput += "\n"
-			}
+			expectedOutput := joinLines(test.output)
 			if expectedOutput != actualOutput.String() {
 				t.Errorf("\nwant: %q\n got: %q", expectedOutput, actualOutput.String())
 			}
 		})
 	}
+}
+
+func joinLines(lines []string) string {
+	joined := strings.Join(lines, "\n")
+	if joined == "" {
+		return joined
+	}
+	return joined + "\n"
 }
 
 func TestNotifications(t *testing.T) {

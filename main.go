@@ -18,20 +18,39 @@ func main() {
 
 	flag.Parse()
 
-	paths, err := readLines(os.Stdin)
+	testableMain(mainArgs{
+		stdin:  os.Stdin,
+		stdout: os.Stdout,
+		stderr: os.Stderr,
+		rev:    rev,
+		format: format,
+	})
+}
+
+type mainArgs struct {
+	stdin  io.Reader
+	stdout io.Writer
+	stderr io.Writer
+	rev    string
+	format string
+}
+
+func testableMain(args mainArgs) {
+
+	paths, err := readLines(args.stdin)
 	if err != nil {
-		fmt.Println("error reading stdin:", err)
+		fmt.Fprintln(os.Stderr, "error reading stdin:", err)
 		os.Exit(1)
 	}
 
-	notifs, err := notifications(&gitfs{rev: rev}, paths)
+	notifs, err := notifications(&gitfs{rev: args.rev}, paths)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	if err := printNotifications(os.Stdout, format, notifs); err != nil {
-		fmt.Println(err)
+	if err := printNotifications(args.stdout, args.format, notifs); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
