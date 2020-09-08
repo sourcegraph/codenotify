@@ -1,0 +1,17 @@
+on: [push]
+
+jobs:
+  codenotify:
+    runs-on: ubuntu-latest
+    name: CODENOTIFY
+    steps:
+      # To use this repository's private action,
+      # you must check out the repository
+      - uses: actions/checkout@v2
+      - uses: ./ # Uses an action in the root directory
+        # id: codenotify
+        # with:
+        #   who-to-greet: 'Mona the Octocat'
+      # Use the output from the `hello` step
+      # - name: Get the output time
+      #   run: echo "The time was ${{ steps.hello.outputs.time }}"

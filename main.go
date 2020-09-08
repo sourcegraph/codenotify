@@ -13,6 +13,8 @@ import (
 )
 
 func main() {
+	fmt.Println("HELLO")
+	fmt.Println(os.Getenv("GITHUB_WORKSPACE"))
 	cwd := *flag.String("cwd", "", "The working directory to use.")
 	rev := *flag.String("rev", "HEAD", "The revision of CODENOTIFY files to use. This is generally the base revision of a change.")
 	format := *flag.String("format", "text", "The format of the output: text or markdown")
@@ -27,6 +29,7 @@ func main() {
 		rev:    rev,
 		format: format,
 	})
+	fmt.Println("BYE")
 }
 
 type mainArgs struct {
