@@ -15,9 +15,17 @@ import (
 func main() {
 	fmt.Println("HELLO")
 	fmt.Println(os.Getenv("GITHUB_WORKSPACE"))
+	fmt.Println(os.Getenv("GITHUB_ACTOR"))
+	fmt.Println(os.Getenv("GITHUB_SHA"))
+	fmt.Println(os.Getenv("GITHUB_REF"))
+	fmt.Println(os.Getenv("GITHUB_HEAD_REF"))
+	fmt.Println(os.Getenv("GITHUB_BASE_REF"))
+
 	cwd := *flag.String("cwd", "", "The working directory to use.")
 	rev := *flag.String("rev", "HEAD", "The revision of CODENOTIFY files to use. This is generally the base revision of a change.")
 	format := *flag.String("format", "text", "The format of the output: text or markdown")
+
+	fmt.Println(cwd)
 
 	flag.Parse()
 

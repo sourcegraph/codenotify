@@ -1,6 +1,6 @@
 FROM golang:1.15-alpine as builder
 
-ENV CGO_ENABLED=0
+#ENV CGO_ENABLED=0
 
 WORKDIR /build
 COPY go.mod go.sum *.go ./
@@ -15,4 +15,4 @@ FROM alpine:3.12
 
 COPY --from=builder /build/codenotify /usr/local/bin/
 
-ENTRYPOINT ["codenotify"]
+ENTRYPOINT codenotify -cwd $GITHUB_WORKSPACE
