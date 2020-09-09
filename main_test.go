@@ -63,16 +63,16 @@ func TestMain(t *testing.T) {
 				}
 			}
 
-			if err := exec.Command("git", "init").Run(); err != nil {
-				t.Fatalf("unable to git init: %s", err)
+			if out, err := exec.Command("git", "init").CombinedOutput(); err != nil {
+				t.Fatalf("unable to git init: %s\n%s", err, string(out))
 			}
 
-			if err := exec.Command("git", "add", ".").Run(); err != nil {
-				t.Fatalf("unable to git add: %s", err)
+			if out, err := exec.Command("git", "add", ".").CombinedOutput(); err != nil {
+				t.Fatalf("unable to git add: %s\n%s", err, string(out))
 			}
 
-			if err := exec.Command("git", "commit", "-m", "'init'").Run(); err != nil {
-				t.Fatalf("unable to git commit: %s", err)
+			if out, err := exec.Command("git", "commit", "-m", "'init'").CombinedOutput(); err != nil {
+				t.Fatalf("unable to git commit: %s\n%s", err, string(out))
 			}
 
 			stdout := &bytes.Buffer{}
