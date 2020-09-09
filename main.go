@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +21,11 @@ func main() {
 	fmt.Println(os.Getenv("GITHUB_REF"))
 	fmt.Println(os.Getenv("GITHUB_HEAD_REF"))
 	fmt.Println(os.Getenv("GITHUB_BASE_REF"))
+	fmt.Println(os.Getenv("GITHUB_EVENT_NAME"))
+	path := os.Getenv("GITHUB_EVENT_PATH")
+	fmt.Println(path)
+	event, err := ioutil.ReadFile(path)
+	fmt.Println(string(event), err)
 
 	cwd := *flag.String("cwd", "", "The working directory to use.")
 	rev := *flag.String("rev", "HEAD", "The revision of CODENOTIFY files to use. This is generally the base revision of a change.")
