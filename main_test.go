@@ -13,27 +13,31 @@ import (
 )
 
 func TestMain(t *testing.T) {
+	os.Unsetenv("GITHUB_ACTIONS")
 	tests := []struct {
-		name   string
-		rev    string
-		format string
-		files  map[string]string
-		stdin  []string
-		stdout []string
-		stderr []string
+		name         string
+		opts         options
+		files        map[string]string
+		changedFiles []string
+		stdout       []string
+		err          string
 	}{
 		{
-			name:   "one file",
-			rev:    "HEAD",
-			format: "text",
+			name: "one file",
+			opts: options{
+				format:  "text",
+				baseRef: "$baseRef",
+				headRef: "$headRef",
+			},
 			files: map[string]string{
 				"CODENOTIFY": "**/*.md @markdown",
 				"file.md":    "",
 			},
-			stdin: []string{
+			changedFiles: []string{
 				"file.md",
 			},
 			stdout: []string{
+				"$baseRef...$headRef",
 				"@markdown -> file.md",
 			},
 		},
@@ -71,51 +75,111 @@ func TestMain(t *testing.T) {
 				t.Fatalf("unable to git add: %s\n%s", err, string(out))
 			}
 
-			if out, err := exec.Command("git", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "'init'").CombinedOutput(); err != nil {
+			if out, err := exec.Command("git", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "init").CombinedOutput(); err != nil {
+				t.Fatalf("unable to make first commit: %s\n%s", err, string(out))
+			}
+
+			br, err := exec.Command("git", "rev-parse", "--short", "HEAD").CombinedOutput()
+			if err != nil {
+				t.Fatalf("unable to git rev-parse: %s\n%s", err, string(br))
+			}
+
+			for _, file := range test.changedFiles {
+				// Easiest way to change a file is to remove it
+				if out, err := exec.Command("git", "rm", file).CombinedOutput(); err != nil {
+					t.Fatalf("unable to git rm: %s\n%s", err, string(out))
+				}
+			}
+
+			if out, err := exec.Command("git", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "headRev").CombinedOutput(); err != nil {
 				t.Fatalf("unable to git commit: %s\n%s", err, string(out))
 			}
 
-			stdout := &bytes.Buffer{}
-			stderr := &bytes.Buffer{}
-
-			testableMain(mainArgs{
-				stdin:  bytes.NewBufferString(joinLines(test.stdin)),
-				stdout: stdout,
-				stderr: stderr,
-				rev:    test.rev,
-				format: test.format,
-			})
-
-			expectedStdout := joinLines(test.stdout)
-			if stdout.String() != expectedStdout {
-				t.Errorf("want stdout:\n%s\ngot:\n%s", expectedStdout, stdout.String())
+			hr, err := exec.Command("git", "rev-parse", "--short", "HEAD").CombinedOutput()
+			if err != nil {
+				t.Fatalf("unable to git rev-parse: %s\n%s", err, string(hr))
 			}
 
-			expectedStderr := joinLines(test.stderr)
-			if stderr.String() != expectedStderr {
-				t.Errorf("want stderr:\n%s\ngot:\n%s", expectedStderr, stderr.String())
+			stdout := &bytes.Buffer{}
+
+			baseRef := strings.TrimSpace(string(br))
+			headRef := strings.TrimSpace(string(hr))
+			err = testableMain(stdout, []string{
+				"-cwd", gitroot,
+				"-baseRef", baseRef,
+				"-headRef", headRef,
+				"-format", test.opts.format,
+			})
+
+			switch {
+			case err != nil && test.err == "":
+				t.Errorf("expected nil error; got %s", err)
+			case err == nil && test.err != "":
+				t.Errorf("expected error %q; got nil", test.err)
+			}
+
+			expectedStdout := joinLines(test.stdout)
+			expectedStdout = strings.ReplaceAll(expectedStdout, "$baseRef", baseRef)
+			expectedStdout = strings.ReplaceAll(expectedStdout, "$headRef", headRef)
+			if stdout.String() != expectedStdout {
+				t.Errorf("want stdout:\n%s\ngot:\n%s", expectedStdout, stdout.String())
 			}
 		})
 	}
 }
 
-func TestPrintNotifications(t *testing.T) {
+func TestWriteNotifications(t *testing.T) {
 	tests := []struct {
 		name   string
-		format string
+		opts   options
 		notifs map[string][]string
 		err    string
 		output []string
 	}{
 		{
-			name:   "markdown",
-			format: "markdown",
+			name: "empty markdown",
+			opts: options{
+				format:  "markdown",
+				baseRef: "a",
+				headRef: "b",
+			},
+			notifs: nil,
+			output: []string{
+				"# CODENOTIFY report",
+				"",
+				"a...b",
+				"",
+				"No notifications.",
+			},
+		},
+		{
+			name: "empty text",
+			opts: options{
+				format:  "text",
+				baseRef: "a",
+				headRef: "b",
+			},
+			notifs: nil,
+			output: []string{
+				"a...b",
+				"No notifications.",
+			},
+		},
+		{
+			name: "markdown",
+			opts: options{
+				format:  "markdown",
+				baseRef: "a",
+				headRef: "b",
+			},
 			notifs: map[string][]string{
 				"@go": {"file.go", "dir/file.go"},
 				"@js": {"file.js", "dir/file.js"},
 			},
 			output: []string{
 				"# CODENOTIFY report",
+				"",
+				"a...b",
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",
@@ -124,28 +188,38 @@ func TestPrintNotifications(t *testing.T) {
 			},
 		},
 		{
-			name:   "text",
-			format: "text",
+			name: "text",
+			opts: options{
+				format:  "text",
+				baseRef: "a",
+				headRef: "b",
+			},
 			notifs: map[string][]string{
 				"@go": {"file.go", "dir/file.go"},
 				"@js": {"file.js", "dir/file.js"},
 			},
 			output: []string{
+				"a...b",
 				"@go -> file.go, dir/file.go",
 				"@js -> file.js, dir/file.js",
 			},
 		},
 		{
-			name:   "unsupported format",
-			format: "pdf",
-			err:    "unsupported format: pdf",
+			name: "unsupported format",
+			opts: options{
+				format: "pdf",
+			},
+			notifs: map[string][]string{
+				"@go": {"file.go", "dir/file.go"},
+			},
+			err: "unsupported format: pdf",
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			actualOutput := bytes.Buffer{}
-			err := printNotifications(&actualOutput, test.format, test.notifs)
+			err := test.opts.writeNotifications(&actualOutput, test.notifs)
 			switch {
 			case err != nil && test.err == "":
 				t.Errorf("expected nil error; got %s", err)
@@ -175,6 +249,16 @@ func TestNotifications(t *testing.T) {
 		fs            memfs
 		notifications map[string][]string
 	}{
+		{
+			name: "no notifications",
+			fs: memfs{
+				"CODENOTIFY":      "nomatch.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: nil,
+		},
 		{
 			name: "file.md",
 			fs: memfs{
