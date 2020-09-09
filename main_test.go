@@ -71,7 +71,7 @@ func TestMain(t *testing.T) {
 				t.Fatalf("unable to git add: %s\n%s", err, string(out))
 			}
 
-			if out, err := exec.Command("git", "commit", "-m", "'init'").CombinedOutput(); err != nil {
+			if out, err := exec.Command("git", "-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-m", "'init'").CombinedOutput(); err != nil {
 				t.Fatalf("unable to git commit: %s\n%s", err, string(out))
 			}
 
