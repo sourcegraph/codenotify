@@ -1,4 +1,4 @@
-name: 'CODENOTIFY'
+name: 'codenotify'
 description: 'Notify subscribed users and groups of changes.'
 runs:
   using: 'docker'

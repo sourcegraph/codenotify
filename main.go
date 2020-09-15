@@ -431,7 +431,10 @@ func subscribers(fs FS, path string) ([]string, error) {
 		scanner := bufio.NewScanner(rulefile)
 		for scanner.Scan() {
 			rule := scanner.Text()
-			rule = trimComment(rule)
+			if rule != "" && rule[0] == '#' {
+				// skip comment
+				continue
+			}
 
 			fields := strings.Fields(rule)
 			switch len(fields) {
@@ -463,13 +466,6 @@ func subscribers(fs FS, path string) ([]string, error) {
 	}
 
 	return subscribers, nil
-}
-
-func trimComment(s string) string {
-	if i := strings.Index(s, "#"); i >= 0 {
-		return s[:i]
-	}
-	return s
 }
 
 func patternToRegexp(pattern string) (*regexp.Regexp, error) {

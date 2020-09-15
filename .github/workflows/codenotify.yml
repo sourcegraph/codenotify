@@ -3,7 +3,7 @@ on: [pull_request]
 jobs:
   codenotify:
     runs-on: ubuntu-latest
-    name: CODENOTIFY
+    name: codenotify 
     steps:
       - uses: actions/checkout@v2
         with:

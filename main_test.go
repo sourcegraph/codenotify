@@ -272,6 +272,16 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
+			name: "no leading slash",
+			fs: memfs{
+				"CODENOTIFY":      "/file.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: nil,
+		},
+		{
 			name: "whitespace",
 			fs: memfs{
 				"CODENOTIFY":      "\n\nfile.md @notify\n\n",
@@ -287,7 +297,7 @@ func TestNotifications(t *testing.T) {
 			name: "comments",
 			fs: memfs{
 				"CODENOTIFY": "#comment\n" +
-					"file.md @notify #comment\n",
+					"file.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -403,6 +413,14 @@ func TestNotifications(t *testing.T) {
 				"@alice": {"CODENOTIFY", "file.md"},
 				"@bob":   {"CODENOTIFY", "file.md"},
 			},
+		},
+		{
+			name: "..",
+			fs: memfs{
+				"dir/CODENOTIFY": "../* @alice @bob\n",
+				"file.md":        "",
+			},
+			notifications: nil,
 		},
 		{
 			name: "multiple CODENOTIFY",
