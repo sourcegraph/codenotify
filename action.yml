@@ -3,3 +3,6 @@ description: 'Notify subscribed users and groups of changes.'
 runs:
   using: 'docker'
   image: 'Dockerfile'
+branding:
+  icon: 'bell'
+  color: 'yellow'
