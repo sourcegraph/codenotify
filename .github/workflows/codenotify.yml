@@ -8,6 +8,6 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: ./ # If you were using this in your project, this would be nicksnyder/codenotify
+      - uses: ./ # If you were using this in your project, this would be sourcegraph/codenotify
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

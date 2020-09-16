@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: nicksnyder/codenotify
+      - uses: sourcegraph/codenotify
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
