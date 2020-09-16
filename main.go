@@ -159,6 +159,10 @@ func commentOnGitHubPullRequest(o *options, prNodeID string) func(map[string][]s
 		}
 
 		if id == "" {
+			if len(notifs) == 0 {
+				fmt.Fprintln(verbose, "not adding a comment because there are no notifications to send")
+				return nil
+			}
 			return addComment(prNodeID, comment.String())
 		}
 
