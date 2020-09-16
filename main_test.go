@@ -145,9 +145,8 @@ func TestWriteNotifications(t *testing.T) {
 			},
 			notifs: nil,
 			output: []string{
-				"# CODENOTIFY report",
-				"",
-				"a...b",
+				"<!-- codenotify report -->",
+				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
 				"",
 				"No notifications.",
 			},
@@ -177,9 +176,8 @@ func TestWriteNotifications(t *testing.T) {
 				"@js": {"file.js", "dir/file.js"},
 			},
 			output: []string{
-				"# CODENOTIFY report",
-				"",
-				"a...b",
+				"<!-- codenotify report -->",
+				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",

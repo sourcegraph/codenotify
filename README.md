@@ -94,9 +94,7 @@ jobs:
 
 It will post a comment on PRs to notify subscribers:
 
-> # CODENOTIFY report
->
-> a1b2c3...d4e5f6
+> Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a1b2c3...d4e5f6.
 >
 > | Notify | File(s)              |
 > | ------ | -------------------- |

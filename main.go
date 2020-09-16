@@ -351,7 +351,7 @@ type options struct {
 	print   func(notifs map[string][]string) error
 }
 
-const markdownCommentTitle = "# CODENOTIFY report\n\n"
+const markdownCommentTitle = "<!-- codenotify report -->\n"
 
 func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) error {
 	subs := []string{}
@@ -374,7 +374,7 @@ func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) er
 		return nil
 	case "markdown":
 		fmt.Fprint(w, markdownCommentTitle)
-		fmt.Fprintf(w, "%s...%s\n\n", o.baseRef, o.headRef)
+		fmt.Fprintf(w, "Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff %s...%s.\n\n", o.baseRef, o.headRef)
 		if len(notifs) == 0 {
 			fmt.Fprintln(w, "No notifications.")
 		} else {
