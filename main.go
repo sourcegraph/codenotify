@@ -275,7 +275,7 @@ func existingCommentId(prNodeID string) (string, error) {
 	}
 
 	for _, comment := range data.Node.Comments.Nodes {
-		if comment.Author.Login == "github-actions" && strings.HasPrefix(comment.Body, markdownCommentTitle) {
+		if strings.HasPrefix(comment.Body, markdownCommentTitle) {
 			return comment.Id, nil
 		}
 	}
