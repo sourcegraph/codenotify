@@ -8,6 +8,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: ./ # If you were using this in your project, this would be sourcegraph/codenotify
+      - uses: ./ # If you were using this in your project, this would be sourcegraph/codenotify@v0.2
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # This token needs to have repo scope and read:org scope (to be able to mention teams).
+          GITHUB_TOKEN: ${{ secrets.CODENOTIFY_GITHUB_TOKEN }}
