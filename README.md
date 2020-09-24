@@ -89,7 +89,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: sourcegraph/codenotify@v0.3
+      - uses: sourcegraph/codenotify@v0.4
         env:
           # secrets.GITHUB_TOKEN is available by default, but it won't allow CODENOTIFY to mention GitHub teams.
           # If you want CODENOTIFY to be able to mention teams, then you need to create a personal access token
