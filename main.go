@@ -50,10 +50,10 @@ func testableMain(stdout io.Writer, args []string) error {
 		return err
 	}
 
-	// Don't notify the author of the change.
-	fmt.Fprintln(verbose, opts.author)
-
-	delete(notifs, opts.author)
+	if opts.author != "" {
+		fmt.Fprintf(verbose, "Not notifying pull request author %s\n", opts.author)
+		delete(notifs, opts.author)
+	}
 
 	return opts.print(notifs)
 }
@@ -124,8 +124,6 @@ func githubActionOptions() (*options, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to read GitHub event json %s: %s", path, err)
 	}
-
-	fmt.Fprintln(verbose, string(data))
 
 	var event struct {
 		PullRequest pullRequest `json:"pull_request"`
