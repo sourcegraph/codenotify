@@ -382,7 +382,7 @@ func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) er
 			fmt.Fprint(w, "|-|-|\n")
 			for _, sub := range subs {
 				files := notifs[sub]
-				fmt.Fprintf(w, "| %s | %s |\n", sub, strings.Join(files, ", "))
+				fmt.Fprintf(w, "| %s | %s |\n", sub, strings.Join(files, "<br>"))
 			}
 		}
 		return nil

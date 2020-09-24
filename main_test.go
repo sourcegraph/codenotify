@@ -181,8 +181,8 @@ func TestWriteNotifications(t *testing.T) {
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",
-				"| @go | file.go, dir/file.go |",
-				"| @js | file.js, dir/file.js |",
+				"| @go | file.go<br>dir/file.go |",
+				"| @js | file.js<br>dir/file.js |",
 			},
 		},
 		{

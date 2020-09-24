@@ -99,10 +99,10 @@ It will post a comment on PRs to notify subscribers:
 
 > Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a1b2c3...d4e5f6.
 >
-> | Notify | File(s)              |
-> | ------ | -------------------- |
-> | @go    | file.go, dir/file.go |
-> | @js    | file.js, dir/file.js |
+> | Notify | File(s)                |
+> | ------ | ---------------------- |
+> | @go    | file.go<br>dir/file.go |
+> | @js    | file.js<br>dir/file.js |
 
 If a comment already exists, it will update the existing comment.
 
