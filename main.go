@@ -51,7 +51,7 @@ func testableMain(stdout io.Writer, args []string) error {
 	}
 
 	// Don't notify the author of the change.
-	notifs[opts.author] = nil
+	delete(notifs, opts.author)
 
 	return opts.print(notifs)
 }
