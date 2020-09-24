@@ -34,6 +34,10 @@ func testableMain(stdout io.Writer, args []string) error {
 		return err
 	}
 
+	if opts == nil {
+		return nil
+	}
+
 	commits := opts.baseRef + "..." + opts.headRef
 	diff, err := run("git", "-C", opts.cwd, "diff", "--name-only", commits)
 	if err != nil {
@@ -112,6 +116,7 @@ type pullRequest struct {
 	User   struct {
 		Login string `json:"login"`
 	} `json:"User"`
+	Draft bool `json:"draft"`
 }
 
 func githubActionOptions() (*options, error) {
@@ -131,6 +136,11 @@ func githubActionOptions() (*options, error) {
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return nil, fmt.Errorf("unable to decode GitHub event: %s\n%s", err, string(data))
+	}
+
+	if event.PullRequest.Draft {
+		fmt.Fprintln(verbose, "Not sending notifications for draft pull request.")
+		return nil, nil
 	}
 
 	commitCount, err := commitCount(event.PullRequest.NodeID)
