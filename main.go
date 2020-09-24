@@ -109,9 +109,9 @@ type pullRequest struct {
 		Sha string `json:"sha"`
 	} `json:"head"`
 	NodeID string `json:"node_id"`
-	Author struct {
+	User   struct {
 		Login string `json:"login"`
-	} `json:"author"`
+	} `json:"User"`
 }
 
 func githubActionOptions() (*options, error) {
