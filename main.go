@@ -55,7 +55,7 @@ func testableMain(stdout io.Writer, args []string) error {
 	}
 
 	if opts.author != "" {
-		fmt.Fprintf(verbose, "Not notifying pull request author %s\n", opts.author)
+		fmt.Fprintf(verbose, "not notifying pull request author %s\n", opts.author)
 		delete(notifs, opts.author)
 	}
 
