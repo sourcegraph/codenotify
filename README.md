@@ -74,9 +74,10 @@ a1b2c3...HEAD
 
 ### GitHub Action
 
-Add `.github/workflows/codenotify.yml` to your repository.
+Add `.github/workflows/codenotify.yml` to your repository with the following contents:
 
 ```yaml
+name: codenotify
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
