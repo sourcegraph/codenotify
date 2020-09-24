@@ -151,7 +151,7 @@ func githubActionOptions() (*options, error) {
 		format:  "markdown",
 		baseRef: event.PullRequest.Base.Sha,
 		headRef: event.PullRequest.Head.Sha,
-		author:  "@" + event.PullRequest.Author.Login,
+		author:  "@" + event.PullRequest.User.Login,
 	}
 	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
