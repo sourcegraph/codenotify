@@ -50,6 +50,9 @@ func testableMain(stdout io.Writer, args []string) error {
 		return err
 	}
 
+	// Don't notify the author of the change.
+	notifs[opts.author] = nil
+
 	return opts.print(notifs)
 }
 
@@ -104,6 +107,9 @@ type pullRequest struct {
 		Sha string `json:"sha"`
 	} `json:"head"`
 	NodeID string `json:"node_id"`
+	Author struct {
+		Login string `json:"login"`
+	} `json:"author"`
 }
 
 func githubActionOptions() (*options, error) {
@@ -141,6 +147,7 @@ func githubActionOptions() (*options, error) {
 		format:  "markdown",
 		baseRef: event.PullRequest.Base.Sha,
 		headRef: event.PullRequest.Head.Sha,
+		author:  "@" + event.PullRequest.Author.Login,
 	}
 	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
@@ -348,6 +355,7 @@ type options struct {
 	baseRef string
 	headRef string
 	format  string
+	author  string
 	print   func(notifs map[string][]string) error
 }
 
