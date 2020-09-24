@@ -77,7 +77,9 @@ a1b2c3...HEAD
 Add `.github/workflows/codenotify.yml` to your repository.
 
 ```yaml
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
 
 jobs:
   codenotify:
