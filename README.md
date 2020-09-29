@@ -124,7 +124,7 @@ The [OWNERS](https://chromium.googlesource.com/chromium/src/+/master/docs/code_r
 
 codenotify makes a different set of tradeoffs:
 
-1. There can be a CODENOTIFY in any directory.
+1. There can be a CODENOTIFY file in any directory.
 1. Rules are additive and do not have precedence.
 1. CODENOTIFY is focused on notifications, not code review. The GitHub Action mentions subscribers in a comment instead of adding them to the "Reviewers" list of a PR.
 
