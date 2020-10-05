@@ -1,3 +1,7 @@
+name: Sourcegraph code intelligence
+on:
+  - push
+
 jobs:
   lsif-go:
     runs-on: ubuntu-latest
