@@ -60,7 +60,7 @@ CODENOTIFY files contain rules that define who gets notified when files change.
 
 Here is an example:
 
-```
+```ignore
 # Lines that start with a # are a comment.
 
 # Empty lines are ignored.
