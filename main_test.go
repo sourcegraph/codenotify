@@ -172,8 +172,8 @@ func TestWriteNotifications(t *testing.T) {
 				headRef: "b",
 			},
 			notifs: map[string][]string{
-				"@go": {"file.go", "dir/file.go"},
-				"@js": {"file.js", "dir/file.js"},
+				"@go": {"file.go", "dir/file_test.go"},
+				"@js": {"file.js", "dir/__snapshots__/file.js"},
 			},
 			output: []string{
 				"<!-- codenotify report -->",
@@ -181,8 +181,8 @@ func TestWriteNotifications(t *testing.T) {
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",
-				"| @go | file.go<br>dir/file.go |",
-				"| @js | file.js<br>dir/file.js |",
+				`| @go | file.go<br>dir/file\_test.go |`,
+				`| @js | file.js<br>dir/\_\_snapshots\_\_/file.js |`,
 			},
 		},
 		{
