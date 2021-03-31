@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -92,7 +91,7 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	if v {
 		verbose = os.Stderr
 	} else {
-		verbose = ioutil.Discard
+		verbose = io.Discard
 	}
 
 	if err := flags.Parse(args); err != nil {
@@ -125,7 +124,7 @@ func githubActionOptions() (*options, error) {
 		return nil, fmt.Errorf("env var GITHUB_EVENT_PATH not set")
 	}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read GitHub event json %s: %s", path, err)
 	}
