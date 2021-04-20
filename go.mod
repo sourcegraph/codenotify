@@ -1,3 +1,3 @@
-module github.com/sourcegraph/codenotify
+module github.com/routablehq/codenotify
 
 go 1.15
