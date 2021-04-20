@@ -1,6 +1,6 @@
 # Codenotify
 
-Codenotify is a tool that analyzes the files changed in one or more git commits and emits the list of people who have subscribed to be notified when those files change. File subscribers are defined in [CODENOTIFY](#codenotify) files.
+Codenotify is a tool that analyzes the files changed in one or more git commits and emits the list of people who have subscribed to be notified when those files change. File subscribers are defined in [CODEPROS](#codepros) files.
 
 Codenotify can be run on the command line, or as a GitHub Action.
 
@@ -19,7 +19,7 @@ a1b2c3...HEAD
 
 When run as a GitHub Action, Codenotify will post a comment that mentions people who have subscribed to files changed in that pull request.
 
-> Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a1b2c3...d4e5f6.
+> Notifying subscribers in [CODEPROS](https://github.com/routablehq/sourcegraph/codenotify) files for diff a1b2c3...d4e5f6.
 >
 > | Notify | File(s)                |
 > | ------ | ---------------------- |
@@ -48,15 +48,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: sourcegraph/codenotify@v0.4
         env:
-          # secrets.GITHUB_TOKEN is available by default, but it won't allow CODENOTIFY to mention GitHub teams.
-          # If you want CODENOTIFY to be able to mention teams, then you need to create a personal access token
+          # secrets.GITHUB_TOKEN is available by default, but it won't allow CODEPROS to mention GitHub teams.
+          # If you want CODEPROS to be able to mention teams, then you need to create a personal access token
           # (https://github.com/settings/tokens) with scopes: repo, read:org.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-## CODENOTIFY files
+## CODEPROS files
 
-CODENOTIFY files contain rules that define who gets notified when files change.
+CODEPROS files contain rules that define who gets notified when files change.
 
 Here is an example:
 
@@ -66,7 +66,7 @@ Here is an example:
 # Empty lines are ignored.
 
 # Each non-comment/non-empty line is a file pattern followed by one or more subscribers separated by whitespace.
-# File patterns are relative to the directory of the CODENOTIFY file that they are defined in.
+# File patterns are relative to the directory of the CODEPROS file that they are defined in.
 # Absolute paths that start with a slash will not match anything.
 # Example:
 # Both @alice and @bob subscribe to file.go.
@@ -80,12 +80,12 @@ file.go     @alice @bob
 file.go @alice
 file.go @bob
 
-# A rule can match files in subdirectories of the CODENOTIFY file's directory.
+# A rule can match files in subdirectories of the CODEPROS file's directory.
 # Example:
 subdir/file.go @alice
-# Alternatively, you can place a CODENOTIFY file in the subdirectory.
+# Alternatively, you can place a CODEPROS file in the subdirectory.
 
-# A rule can not match files in parent directories of the CODENOTIFY file.
+# A rule can not match files in parent directories of the CODEPROS file.
 # Example: @wont-match won't be notified of changes to file.go.
 ../file.go @wont-match
 
@@ -128,9 +128,9 @@ The [OWNERS](https://chromium.googlesource.com/chromium/src/+/master/docs/code_r
 
 Codenotify makes a different set of tradeoffs:
 
-1. There can be a CODENOTIFY file in any directory.
+1. There can be a CODEPROS file in any directory.
 1. Rules are additive and do not have precedence.
-1. CODENOTIFY is focused on notifications, not code review. The GitHub Action mentions subscribers in a comment instead of adding them to the "Reviewers" list of a PR.
+1. Codenotify is focused on notifications, not code review. The GitHub Action mentions subscribers in a comment instead of adding them to the "Reviewers" list of a PR.
 
 Codenotify can be used in conjunction with, or as a replacement for CODEOWNERS.
 

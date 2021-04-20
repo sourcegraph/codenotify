@@ -30,7 +30,7 @@ func TestMain(t *testing.T) {
 				headRef: "$headRef",
 			},
 			files: map[string]string{
-				"CODENOTIFY": "**/*.md @markdown",
+				"CODEPROS": "**/*.md @markdown",
 				"file.md":    "",
 			},
 			changedFiles: []string{
@@ -146,7 +146,7 @@ func TestWriteNotifications(t *testing.T) {
 			notifs: nil,
 			output: []string{
 				"<!-- codenotify report -->",
-				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
+				"Notifying subscribers in [CODEPROS](https://github.com/sourcegraph/codenotify) files for diff a...b.",
 				"",
 				"No notifications.",
 			},
@@ -177,7 +177,7 @@ func TestWriteNotifications(t *testing.T) {
 			},
 			output: []string{
 				"<!-- codenotify report -->",
-				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
+				"Notifying subscribers in [CODEPROS](https://github.com/sourcegraph/codenotify) files for diff a...b.",
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",
@@ -250,7 +250,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "no notifications",
 			fs: memfs{
-				"CODENOTIFY":      "nomatch.md @notify\n",
+				"CODEPROS":      "nomatch.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -260,7 +260,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "file.md",
 			fs: memfs{
-				"CODENOTIFY":      "file.md @notify\n",
+				"CODEPROS":      "file.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -272,7 +272,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "no leading slash",
 			fs: memfs{
-				"CODENOTIFY":      "/file.md @notify\n",
+				"CODEPROS":      "/file.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -282,7 +282,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "whitespace",
 			fs: memfs{
-				"CODENOTIFY":      "\n\nfile.md @notify\n\n",
+				"CODEPROS":      "\n\nfile.md @notify\n\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -294,7 +294,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "comments",
 			fs: memfs{
-				"CODENOTIFY": "#comment\n" +
+				"CODEPROS": "#comment\n" +
 					"file.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
@@ -307,19 +307,19 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "*",
 			fs: memfs{
-				"CODENOTIFY":      "* @notify\n",
+				"CODEPROS":      "* @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
 			},
 			notifications: map[string][]string{
-				"@notify": {"CODENOTIFY", "file.md"},
+				"@notify": {"CODEPROS", "file.md"},
 			},
 		},
 		{
 			name: "dir/*",
 			fs: memfs{
-				"CODENOTIFY":      "dir/* @notify\n",
+				"CODEPROS":      "dir/* @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -331,31 +331,31 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "**",
 			fs: memfs{
-				"CODENOTIFY":      "** @notify\n",
+				"CODEPROS":      "** @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
 			},
 			notifications: map[string][]string{
-				"@notify": {"CODENOTIFY", "file.md", "dir/file.md", "dir/dir/file.md"},
+				"@notify": {"CODEPROS", "file.md", "dir/file.md", "dir/dir/file.md"},
 			},
 		},
 		{
 			name: "**/*", // same as **
 			fs: memfs{
-				"CODENOTIFY":      "**/* @notify\n",
+				"CODEPROS":      "**/* @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
 			},
 			notifications: map[string][]string{
-				"@notify": {"CODENOTIFY", "file.md", "dir/file.md", "dir/dir/file.md"},
+				"@notify": {"CODEPROS", "file.md", "dir/file.md", "dir/dir/file.md"},
 			},
 		},
 		{
 			name: "**/file.md",
 			fs: memfs{
-				"CODENOTIFY":      "**/file.md @notify\n",
+				"CODEPROS":      "**/file.md @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -367,7 +367,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "dir/**",
 			fs: memfs{
-				"CODENOTIFY":      "dir/** @notify\n",
+				"CODEPROS":      "dir/** @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -379,7 +379,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "dir/", // same as "dir/**"
 			fs: memfs{
-				"CODENOTIFY":      "dir/ @notify\n",
+				"CODEPROS":      "dir/ @notify\n",
 				"file.md":         "",
 				"dir/file.md":     "",
 				"dir/dir/file.md": "",
@@ -391,7 +391,7 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "dir/**/file.md",
 			fs: memfs{
-				"CODENOTIFY":      "dir/**/file.md @notify\n",
+				"CODEPROS":      "dir/**/file.md @notify\n",
 				"file.md":         "",
 				"dirfile.md":      "",
 				"dir/file.md":     "",
@@ -404,26 +404,26 @@ func TestNotifications(t *testing.T) {
 		{
 			name: "multiple subscribers",
 			fs: memfs{
-				"CODENOTIFY": "* @alice @bob\n",
+				"CODEPROS": "* @alice @bob\n",
 				"file.md":    "",
 			},
 			notifications: map[string][]string{
-				"@alice": {"CODENOTIFY", "file.md"},
-				"@bob":   {"CODENOTIFY", "file.md"},
+				"@alice": {"CODEPROS", "file.md"},
+				"@bob":   {"CODEPROS", "file.md"},
 			},
 		},
 		{
 			name: "..",
 			fs: memfs{
-				"dir/CODENOTIFY": "../* @alice @bob\n",
+				"dir/CODEPROS": "../* @alice @bob\n",
 				"file.md":        "",
 			},
 			notifications: nil,
 		},
 		{
-			name: "multiple CODENOTIFY",
+			name: "multiple CODEPROS",
 			fs: memfs{
-				"CODENOTIFY": "\n" +
+				"CODEPROS": "\n" +
 					"* @rootany\n" +
 					"*.go @rootgo\n" +
 					"*.js @rootjs\n" +
@@ -433,7 +433,7 @@ func TestNotifications(t *testing.T) {
 				"file.md": "",
 				"file.js": "",
 				"file.go": "",
-				"dir/CODENOTIFY": "\n" +
+				"dir/CODEPROS": "\n" +
 					"* @dir/any\n" +
 					"*.go @dir/go\n" +
 					"*.js @dir/js\n" +
@@ -443,7 +443,7 @@ func TestNotifications(t *testing.T) {
 				"dir/file.md": "",
 				"dir/file.go": "",
 				"dir/file.js": "",
-				"dir/dir/CODENOTIFY": "\n" +
+				"dir/dir/CODEPROS": "\n" +
 					"* @dir/dir/any\n" +
 					"*.go @dir/dir/go\n" +
 					"*.js @dir/dir/js\n" +
@@ -456,15 +456,15 @@ func TestNotifications(t *testing.T) {
 			},
 			notifications: map[string][]string{
 				"@all": {
-					"CODENOTIFY",
+					"CODEPROS",
 					"file.md",
 					"file.js",
 					"file.go",
-					"dir/CODENOTIFY",
+					"dir/CODEPROS",
 					"dir/file.md",
 					"dir/file.go",
 					"dir/file.js",
-					"dir/dir/CODENOTIFY",
+					"dir/dir/CODEPROS",
 					"dir/dir/file.md",
 					"dir/dir/file.go",
 					"dir/dir/file.js",
@@ -480,7 +480,7 @@ func TestNotifications(t *testing.T) {
 					"dir/dir/file.js",
 				},
 				"@rootany": {
-					"CODENOTIFY",
+					"CODEPROS",
 					"file.md",
 					"file.js",
 					"file.go",
@@ -492,11 +492,11 @@ func TestNotifications(t *testing.T) {
 					"file.js",
 				},
 				"@dir/all": {
-					"dir/CODENOTIFY",
+					"dir/CODEPROS",
 					"dir/file.md",
 					"dir/file.go",
 					"dir/file.js",
-					"dir/dir/CODENOTIFY",
+					"dir/dir/CODEPROS",
 					"dir/dir/file.md",
 					"dir/dir/file.go",
 					"dir/dir/file.js",
@@ -510,7 +510,7 @@ func TestNotifications(t *testing.T) {
 					"dir/dir/file.js",
 				},
 				"@dir/any": {
-					"dir/CODENOTIFY",
+					"dir/CODEPROS",
 					"dir/file.md",
 					"dir/file.js",
 					"dir/file.go",
@@ -522,7 +522,7 @@ func TestNotifications(t *testing.T) {
 					"dir/file.js",
 				},
 				"@dir/dir/all": {
-					"dir/dir/CODENOTIFY",
+					"dir/dir/CODEPROS",
 					"dir/dir/file.md",
 					"dir/dir/file.go",
 					"dir/dir/file.js",
@@ -534,7 +534,7 @@ func TestNotifications(t *testing.T) {
 					"dir/dir/file.js",
 				},
 				"@dir/dir/any": {
-					"dir/dir/CODENOTIFY",
+					"dir/dir/CODEPROS",
 					"dir/dir/file.md",
 					"dir/dir/file.js",
 					"dir/dir/file.go",

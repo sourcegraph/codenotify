@@ -394,16 +394,17 @@ func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) er
 		return nil
 	case "markdown":
 		fmt.Fprint(w, markdownCommentTitle)
-		fmt.Fprintf(w, "Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff %s...%s.\n\n", o.baseRef, o.headRef)
 		if len(notifs) == 0 {
 			fmt.Fprintln(w, "No notifications.")
 		} else {
-			fmt.Fprint(w, "| Notify | File(s) |\n")
-			fmt.Fprint(w, "|-|-|\n")
+			fmt.Fprintln(w, "👔 Code pros! Mind taking a look at this PR?")
+
+			codeProNames := []string{}
 			for _, sub := range subs {
-				files := notifs[sub]
-				fmt.Fprintf(w, "| %s | %s |\n", sub, strings.Join(files, "<br>"))
+				codeProNames = append(codeProNames, sub)
 			}
+
+			fmt.Fprintf(w, "cc: %s", strings.Join(codeProNames, ", "))
 		}
 		return nil
 	default:
@@ -442,7 +443,7 @@ func subscribers(fs FS, path string) ([]string, error) {
 	parts := strings.Split(path, string(os.PathSeparator))
 	for i := range parts {
 		base := filepath.Join(parts[:i]...)
-		rulefilepath := filepath.Join(base, "CODENOTIFY")
+		rulefilepath := filepath.Join(base, "CODEPROS")
 
 		rulefile, err := fs.Open(rulefilepath)
 		if err != nil {
