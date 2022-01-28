@@ -1,12 +1,13 @@
 name: 'codenotify'
 description: 'Notify subscribed users and groups of changes.'
+inputs:
+  filename:
+    description: 'Filename to analyze for notifications'
+    required: false
+    default: 'CODENOTIFY'
 runs:
   using: 'docker'
   image: 'Dockerfile'
 branding:
   icon: 'bell'
   color: 'yellow'
-inputs:
-  filename: 'Filename to analyze for notifications'
-  required: false
-  default: 'CODENOTIFY'
