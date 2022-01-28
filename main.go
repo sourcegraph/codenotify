@@ -87,7 +87,7 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	flags.StringVar(&opts.baseRef, "baseRef", "", "The base ref to use when computing the file diff.")
 	flags.StringVar(&opts.headRef, "headRef", "HEAD", "The head ref to use when computing the file diff.")
 	flags.StringVar(&opts.format, "format", "text", "The format of the output: text or markdown")
-	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The name of the file to analyze for notifications")
+	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The filename in which file subscribers are defined")
 	v := *flags.Bool("verbose", false, "Verbose messages printed to stderr")
 
 	if v {
@@ -155,12 +155,18 @@ func githubActionOptions() (*options, error) {
 		return nil, err
 	}
 
+	filename := os.Getenv("INPUT_FILENAME")
+	if filename == "" {
+		return nil, fmt.Errorf("env var INPUT_FILENAME not set")
+	}
+
 	o := &options{
-		cwd:     cwd,
-		format:  "markdown",
-		baseRef: event.PullRequest.Base.Sha,
-		headRef: event.PullRequest.Head.Sha,
-		author:  "@" + event.PullRequest.User.Login,
+		cwd:      cwd,
+		format:   "markdown",
+		filename: filename,
+		baseRef:  event.PullRequest.Base.Sha,
+		headRef:  event.PullRequest.Head.Sha,
+		author:   "@" + event.PullRequest.User.Login,
 	}
 	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
@@ -439,6 +445,7 @@ func notifications(fs FS, paths []string, notifyFilename string) (map[string][]s
 }
 
 func subscribers(fs FS, path string, notifyFilename string) ([]string, error) {
+	fmt.Fprintf(verbose, "analyzing subscribers in %s files\n", notifyFilename)
 	subscribers := []string{}
 
 	parts := strings.Split(path, string(os.PathSeparator))
