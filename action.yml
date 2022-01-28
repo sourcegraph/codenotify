@@ -6,3 +6,7 @@ runs:
 branding:
   icon: 'bell'
   color: 'yellow'
+inputs:
+  filename: 'Filename to analyze for notifications'
+  required: false
+  default: 'CODENOTIFY'

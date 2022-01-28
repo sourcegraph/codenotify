@@ -14,4 +14,5 @@ RUN apk add --no-cache git
 
 COPY --from=builder /build/codenotify /usr/local/bin/
 
-ENTRYPOINT ["codenotify"]
+ENV CODENOTIFY_FILENAME=$INPUT_FILENAME
+ENTRYPOINT codenotify -filename ${CODENOTIFY_FILENAME}}
