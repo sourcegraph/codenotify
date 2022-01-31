@@ -179,7 +179,7 @@ func commentOnGitHubPullRequest(o *options, prNodeID string) func(map[string][]s
 			return err
 		}
 
-		id, err := existingCommentId(prNodeID)
+		id, err := existingCommentId(prNodeID, o.filename)
 		if err != nil {
 			return err
 		}
@@ -261,7 +261,7 @@ func commitCount(prNodeID string) (int, error) {
 	return data.Node.Commits.TotalCount, err
 }
 
-func existingCommentId(prNodeID string) (string, error) {
+func existingCommentId(prNodeID string, filename string) (string, error) {
 	data := struct {
 		Node struct {
 			Comments struct {
@@ -301,7 +301,7 @@ func existingCommentId(prNodeID string) (string, error) {
 	}
 
 	for _, comment := range data.Node.Comments.Nodes {
-		if strings.HasPrefix(comment.Body, markdownCommentTitle) {
+		if strings.HasPrefix(comment.Body, markdownCommentTitle(filename)) {
 			return comment.Id, nil
 		}
 	}
@@ -379,7 +379,9 @@ type options struct {
 	print    func(notifs map[string][]string) error
 }
 
-const markdownCommentTitle = "<!-- codenotify report -->\n"
+func markdownCommentTitle(filename string) string {
+	return fmt.Sprintf("<!-- codenotify:%s report -->\n", filename)
+}
 
 func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) error {
 	subs := []string{}
@@ -401,7 +403,7 @@ func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) er
 		}
 		return nil
 	case "markdown":
-		fmt.Fprint(w, markdownCommentTitle)
+		fmt.Fprint(w, markdownCommentTitle(o.filename))
 		fmt.Fprintf(w, "[Codenotify](https://github.com/sourcegraph/codenotify): Notifying subscribers in %s files for diff %s...%s.\n\n", o.filename, o.baseRef, o.headRef)
 		if len(notifs) == 0 {
 			fmt.Fprintln(w, "No notifications.")
