@@ -1,5 +1,10 @@
 name: 'codenotify'
 description: 'Notify subscribed users and groups of changes.'
+inputs:
+  filename:
+    description: 'Filename in which file subscribers are defined'
+    required: false
+    default: 'CODENOTIFY'
 runs:
   using: 'docker'
   image: 'Dockerfile'

@@ -49,7 +49,7 @@ func testableMain(stdout io.Writer, args []string) error {
 		return fmt.Errorf("error scanning lines from diff: %s\n%s", err, string(diff))
 	}
 
-	notifs, err := notifications(&gitfs{cwd: opts.cwd, rev: opts.baseRef}, paths)
+	notifs, err := notifications(&gitfs{cwd: opts.cwd, rev: opts.baseRef}, paths, opts.filename)
 	if err != nil {
 		return err
 	}
@@ -87,6 +87,7 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	flags.StringVar(&opts.baseRef, "baseRef", "", "The base ref to use when computing the file diff.")
 	flags.StringVar(&opts.headRef, "headRef", "HEAD", "The head ref to use when computing the file diff.")
 	flags.StringVar(&opts.format, "format", "text", "The format of the output: text or markdown")
+	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The filename in which file subscribers are defined")
 	v := *flags.Bool("verbose", false, "Verbose messages printed to stderr")
 
 	if v {
@@ -154,12 +155,18 @@ func githubActionOptions() (*options, error) {
 		return nil, err
 	}
 
+	filename := os.Getenv("INPUT_FILENAME")
+	if filename == "" {
+		return nil, fmt.Errorf("env var INPUT_FILENAME not set")
+	}
+
 	o := &options{
-		cwd:     cwd,
-		format:  "markdown",
-		baseRef: event.PullRequest.Base.Sha,
-		headRef: event.PullRequest.Head.Sha,
-		author:  "@" + event.PullRequest.User.Login,
+		cwd:      cwd,
+		format:   "markdown",
+		filename: filename,
+		baseRef:  event.PullRequest.Base.Sha,
+		headRef:  event.PullRequest.Head.Sha,
+		author:   "@" + event.PullRequest.User.Login,
 	}
 	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
@@ -363,12 +370,13 @@ func graphql(query string, variables map[string]interface{}, responseData interf
 }
 
 type options struct {
-	cwd     string
-	baseRef string
-	headRef string
-	format  string
-	author  string
-	print   func(notifs map[string][]string) error
+	cwd      string
+	baseRef  string
+	headRef  string
+	format   string
+	filename string
+	author   string
+	print    func(notifs map[string][]string) error
 }
 
 const markdownCommentTitle = "<!-- codenotify report -->\n"
@@ -394,7 +402,7 @@ func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) er
 		return nil
 	case "markdown":
 		fmt.Fprint(w, markdownCommentTitle)
-		fmt.Fprintf(w, "Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff %s...%s.\n\n", o.baseRef, o.headRef)
+		fmt.Fprintf(w, "[Codenotify](https://github.com/sourcegraph/codenotify): Notifying subscribers in %s files for diff %s...%s.\n\n", o.filename, o.baseRef, o.headRef)
 		if len(notifs) == 0 {
 			fmt.Fprintln(w, "No notifications.")
 		} else {
@@ -420,10 +428,10 @@ func readLines(b []byte) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func notifications(fs FS, paths []string) (map[string][]string, error) {
+func notifications(fs FS, paths []string, notifyFilename string) (map[string][]string, error) {
 	notifications := map[string][]string{}
 	for _, path := range paths {
-		subs, err := subscribers(fs, path)
+		subs, err := subscribers(fs, path, notifyFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -436,13 +444,14 @@ func notifications(fs FS, paths []string) (map[string][]string, error) {
 	return notifications, nil
 }
 
-func subscribers(fs FS, path string) ([]string, error) {
+func subscribers(fs FS, path string, notifyFilename string) ([]string, error) {
+	fmt.Fprintf(verbose, "analyzing subscribers in %s files\n", notifyFilename)
 	subscribers := []string{}
 
 	parts := strings.Split(path, string(os.PathSeparator))
 	for i := range parts {
 		base := filepath.Join(parts[:i]...)
-		rulefilepath := filepath.Join(base, "CODENOTIFY")
+		rulefilepath := filepath.Join(base, notifyFilename)
 
 		rulefile, err := fs.Open(rulefilepath)
 		if err != nil {

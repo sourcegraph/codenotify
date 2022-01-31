@@ -139,14 +139,15 @@ func TestWriteNotifications(t *testing.T) {
 		{
 			name: "empty markdown",
 			opts: options{
-				format:  "markdown",
-				baseRef: "a",
-				headRef: "b",
+				filename: "CODENOTIFY",
+				format:   "markdown",
+				baseRef:  "a",
+				headRef:  "b",
 			},
 			notifs: nil,
 			output: []string{
 				"<!-- codenotify report -->",
-				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
+				"[Codenotify](https://github.com/sourcegraph/codenotify): Notifying subscribers in CODENOTIFY files for diff a...b.",
 				"",
 				"No notifications.",
 			},
@@ -154,9 +155,10 @@ func TestWriteNotifications(t *testing.T) {
 		{
 			name: "empty text",
 			opts: options{
-				format:  "text",
-				baseRef: "a",
-				headRef: "b",
+				filename: "CODENOTIFY",
+				format:   "text",
+				baseRef:  "a",
+				headRef:  "b",
 			},
 			notifs: nil,
 			output: []string{
@@ -167,9 +169,10 @@ func TestWriteNotifications(t *testing.T) {
 		{
 			name: "markdown",
 			opts: options{
-				format:  "markdown",
-				baseRef: "a",
-				headRef: "b",
+				filename: "CODENOTIFY",
+				format:   "markdown",
+				baseRef:  "a",
+				headRef:  "b",
 			},
 			notifs: map[string][]string{
 				"@go": {"file.go", "dir/file.go"},
@@ -177,7 +180,7 @@ func TestWriteNotifications(t *testing.T) {
 			},
 			output: []string{
 				"<!-- codenotify report -->",
-				"Notifying subscribers in [CODENOTIFY](https://github.com/sourcegraph/codenotify) files for diff a...b.",
+				"[Codenotify](https://github.com/sourcegraph/codenotify): Notifying subscribers in CODENOTIFY files for diff a...b.",
 				"",
 				"| Notify | File(s) |",
 				"|-|-|",
@@ -188,9 +191,10 @@ func TestWriteNotifications(t *testing.T) {
 		{
 			name: "text",
 			opts: options{
-				format:  "text",
-				baseRef: "a",
-				headRef: "b",
+				filename: "CODENOTIFY",
+				format:   "text",
+				baseRef:  "a",
+				headRef:  "b",
 			},
 			notifs: map[string][]string{
 				"@go": {"file.go", "dir/file.go"},
@@ -244,11 +248,13 @@ func joinLines(lines []string) string {
 func TestNotifications(t *testing.T) {
 	tests := []struct {
 		name          string
+		filename      string
 		fs            memfs
 		notifications map[string][]string
 	}{
 		{
-			name: "no notifications",
+			name:     "no notifications",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "nomatch.md @notify\n",
 				"file.md":         "",
@@ -258,7 +264,8 @@ func TestNotifications(t *testing.T) {
 			notifications: nil,
 		},
 		{
-			name: "file.md",
+			name:     "file.md",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "file.md @notify\n",
 				"file.md":         "",
@@ -270,7 +277,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "no leading slash",
+			name:     "no leading slash",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "/file.md @notify\n",
 				"file.md":         "",
@@ -280,7 +288,8 @@ func TestNotifications(t *testing.T) {
 			notifications: nil,
 		},
 		{
-			name: "whitespace",
+			name:     "whitespace",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "\n\nfile.md @notify\n\n",
 				"file.md":         "",
@@ -292,7 +301,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "comments",
+			name:     "comments",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY": "#comment\n" +
 					"file.md @notify\n",
@@ -305,7 +315,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "*",
+			name:     "*",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "* @notify\n",
 				"file.md":         "",
@@ -317,7 +328,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "dir/*",
+			name:     "dir/*",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "dir/* @notify\n",
 				"file.md":         "",
@@ -329,7 +341,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "**",
+			name:     "**",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "** @notify\n",
 				"file.md":         "",
@@ -341,7 +354,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "**/*", // same as **
+			name:     "**/*", // same as **
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "**/* @notify\n",
 				"file.md":         "",
@@ -353,7 +367,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "**/file.md",
+			name:     "**/file.md",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "**/file.md @notify\n",
 				"file.md":         "",
@@ -365,7 +380,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "dir/**",
+			name:     "dir/**",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "dir/** @notify\n",
 				"file.md":         "",
@@ -377,7 +393,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "dir/", // same as "dir/**"
+			name:     "dir/", // same as "dir/**"
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "dir/ @notify\n",
 				"file.md":         "",
@@ -389,7 +406,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "dir/**/file.md",
+			name:     "dir/**/file.md",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY":      "dir/**/file.md @notify\n",
 				"file.md":         "",
@@ -402,7 +420,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "multiple subscribers",
+			name:     "multiple subscribers",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY": "* @alice @bob\n",
 				"file.md":    "",
@@ -413,7 +432,8 @@ func TestNotifications(t *testing.T) {
 			},
 		},
 		{
-			name: "..",
+			name:     "..",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"dir/CODENOTIFY": "../* @alice @bob\n",
 				"file.md":        "",
@@ -421,7 +441,8 @@ func TestNotifications(t *testing.T) {
 			notifications: nil,
 		},
 		{
-			name: "multiple CODENOTIFY",
+			name:     "multiple CODENOTIFY",
+			filename: "CODENOTIFY",
 			fs: memfs{
 				"CODENOTIFY": "\n" +
 					"* @rootany\n" +
@@ -547,11 +568,37 @@ func TestNotifications(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:     "no notifications for OWNERS",
+			filename: "OWNERS",
+			fs: memfs{
+				"CODENOTIFY":      "file.md @notify\n",
+				"OWNERS":          "nomatch.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: nil,
+		},
+		{
+			name:     "file.md in OWNERS",
+			filename: "OWNERS",
+			fs: memfs{
+				"CODENOTIFY":      "nomatch.md @notify\n",
+				"OWNERS":          "file.md @notify\n",
+				"file.md":         "",
+				"dir/file.md":     "",
+				"dir/dir/file.md": "",
+			},
+			notifications: map[string][]string{
+				"@notify": {"file.md"},
+			},
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			notifs, err := notifications(test.fs, test.fs.paths())
+			notifs, err := notifications(test.fs, test.fs.paths(), test.filename)
 			if err != nil {
 				t.Errorf("expected nil error; got %s", err)
 			}
