@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/sourcegraph/codenotify"
 )
 
 func TestMain(t *testing.T) {
@@ -682,13 +684,13 @@ func (m memfs) paths() []string {
 	return paths
 }
 
-func (m memfs) Open(name string) (File, error) {
+func (m memfs) Open(name string) (codenotify.File, error) {
 	content, ok := m[name]
 	if !ok {
 		return nil, os.ErrNotExist
 	}
 
-	mf := memfile{
+	mf := codenotify.Memfile{
 		Buffer: bytes.NewBufferString(content),
 	}
 
