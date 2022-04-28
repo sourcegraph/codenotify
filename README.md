@@ -46,12 +46,17 @@ jobs:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: sourcegraph/codenotify@v0.4
+      - uses: sourcegraph/codenotify@v0.5
         env:
           # secrets.GITHUB_TOKEN is available by default, but it won't allow CODENOTIFY to mention GitHub teams.
           # If you want CODENOTIFY to be able to mention teams, then you need to create a personal access token
           # (https://github.com/settings/tokens) with scopes: repo, read:org.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#       with:
+#         # Filename in which file subscribers are defined, default is 'CODENOTIFY'
+#         filename: 'CODENOTIFY'
+#         # The threshold of notifying subscribers to prevent broad spamming, 0 to disable (default)
+#         subscriber_threshold: '10'
 ```
 
 ## CODENOTIFY files
