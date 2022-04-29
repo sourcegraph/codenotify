@@ -88,7 +88,7 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	flags.StringVar(&opts.headRef, "headRef", "HEAD", "The head ref to use when computing the file diff.")
 	flags.StringVar(&opts.format, "format", "text", "The format of the output: text or markdown")
 	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The filename in which file subscribers are defined")
-	flags.IntVar(&opts.subscriberThreshold, "subscriber_threshold", 0, "The threshold of notifying subscribers")
+	flags.IntVar(&opts.subscriberThreshold, "subscriber-threshold", 0, "The threshold of notifying subscribers")
 	v := *flags.Bool("verbose", false, "Verbose messages printed to stderr")
 
 	if v {
