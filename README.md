@@ -56,7 +56,7 @@ jobs:
 #         # Filename in which file subscribers are defined, default is 'CODENOTIFY'
 #         filename: 'CODENOTIFY'
 #         # The threshold of notifying subscribers to prevent broad spamming, 0 to disable (default)
-#         subscriber_threshold: '10'
+#         subscriber-threshold: '10'
 ```
 
 ## CODENOTIFY files
