@@ -226,7 +226,7 @@ func TestWriteNotifications(t *testing.T) {
 				"@js": {"file.js", "dir/file.js"},
 			},
 			output: []string{
-				"The number of notifying subscribers (2) has exceeded the threshold (1).",
+				"Not notifying subscribers because the number of notifying subscribers (2) has exceeded the threshold (1).",
 			},
 		},
 	}

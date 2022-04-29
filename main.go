@@ -387,7 +387,7 @@ func markdownCommentTitle(filename string) string {
 
 func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) error {
 	if o.subscriberThreshold > 0 && len(notifs) > o.subscriberThreshold {
-		fmt.Fprintf(w, "The number of notifying subscribers (%d) has exceeded the threshold (%d).\n", len(notifs), o.subscriberThreshold)
+		fmt.Fprintf(w, "Not notifying subscribers because the number of notifying subscribers (%d) has exceeded the threshold (%d).\n", len(notifs), o.subscriberThreshold)
 		return nil
 	}
 
