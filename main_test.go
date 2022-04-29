@@ -216,6 +216,19 @@ func TestWriteNotifications(t *testing.T) {
 			},
 			err: "unsupported format: pdf",
 		},
+		{
+			name: "exceeded subscriber threshold",
+			opts: options{
+				subscriberThreshold: 1,
+			},
+			notifs: map[string][]string{
+				"@go": {"file.go", "dir/file.go"},
+				"@js": {"file.js", "dir/file.js"},
+			},
+			output: []string{
+				"Not notifying subscribers because the number of notifying subscribers (2) has exceeded the threshold (1).",
+			},
+		},
 	}
 
 	for _, test := range tests {

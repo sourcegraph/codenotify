@@ -5,6 +5,10 @@ inputs:
     description: 'Filename in which file subscribers are defined'
     required: false
     default: 'CODENOTIFY'
+  subscriber-threshold:
+    description: 'The threshold of notifying subscribers to prevent broad spamming, 0 to disable'
+    required: false
+    default: '0'
 runs:
   using: 'docker'
   image: 'Dockerfile'

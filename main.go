@@ -88,6 +88,7 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	flags.StringVar(&opts.headRef, "headRef", "HEAD", "The head ref to use when computing the file diff.")
 	flags.StringVar(&opts.format, "format", "text", "The format of the output: text or markdown")
 	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The filename in which file subscribers are defined")
+	flags.IntVar(&opts.subscriberThreshold, "subscriber-threshold", 0, "The threshold of notifying subscribers")
 	v := *flags.Bool("verbose", false, "Verbose messages printed to stderr")
 
 	if v {
@@ -370,13 +371,14 @@ func graphql(query string, variables map[string]interface{}, responseData interf
 }
 
 type options struct {
-	cwd      string
-	baseRef  string
-	headRef  string
-	format   string
-	filename string
-	author   string
-	print    func(notifs map[string][]string) error
+	cwd                 string
+	baseRef             string
+	headRef             string
+	format              string
+	filename            string
+	subscriberThreshold int
+	author              string
+	print               func(notifs map[string][]string) error
 }
 
 func markdownCommentTitle(filename string) string {
@@ -384,7 +386,12 @@ func markdownCommentTitle(filename string) string {
 }
 
 func (o *options) writeNotifications(w io.Writer, notifs map[string][]string) error {
-	subs := []string{}
+	if o.subscriberThreshold > 0 && len(notifs) > o.subscriberThreshold {
+		fmt.Fprintf(w, "Not notifying subscribers because the number of notifying subscribers (%d) has exceeded the threshold (%d).\n", len(notifs), o.subscriberThreshold)
+		return nil
+	}
+
+	subs := make([]string, 0, len(notifs))
 	for sub := range notifs {
 		subs = append(subs, sub)
 	}
