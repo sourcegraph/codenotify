@@ -161,13 +161,16 @@ func githubActionOptions() (*options, error) {
 		return nil, fmt.Errorf("env var INPUT_FILENAME not set")
 	}
 
+	subscriberThreshold, _ := strconv.Atoi(os.Getenv("INPUT_SUBSCRIBER-THRESHOLD"))
+
 	o := &options{
-		cwd:      cwd,
-		format:   "markdown",
-		filename: filename,
-		baseRef:  event.PullRequest.Base.Sha,
-		headRef:  event.PullRequest.Head.Sha,
-		author:   "@" + event.PullRequest.User.Login,
+		cwd:                 cwd,
+		format:              "markdown",
+		filename:            filename,
+		subscriberThreshold: subscriberThreshold,
+		baseRef:             event.PullRequest.Base.Sha,
+		headRef:             event.PullRequest.Head.Sha,
+		author:              "@" + event.PullRequest.User.Login,
 	}
 	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
