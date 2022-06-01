@@ -24,8 +24,21 @@ var verbose io.Writer = os.Stderr
 func main() {
 	if err := testableMain(os.Stdout, os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+
+		if isRateLimitErr(err) {
+			fmt.Println("Github API limit reached. Soft exiting")
+		} else {
+			os.Exit(1)
+		}
 	}
+}
+
+func isRateLimitErr(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return strings.Contains(err.Error(), "API rate limit exceeded")
 }
 
 func testableMain(stdout io.Writer, args []string) error {
