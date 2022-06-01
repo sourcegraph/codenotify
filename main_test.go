@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -640,6 +641,33 @@ func TestNotifications(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestIsRateLimitErr(t *testing.T) {
+	cases := []struct {
+		err      error
+		expected bool
+	}{
+		{
+			err:      fmt.Errorf("graphql: API rate limit exceeded for user ID 12345"),
+			expected: true,
+		}, {
+			err:      nil,
+			expected: false,
+		}, {
+			err:      fmt.Errorf("fake top error"),
+			expected: false,
+		}, {
+			err:      fmt.Errorf("something something: API rate limit exceeded for user ID 12345"),
+			expected: true,
+		},
+	}
+
+	for _, tc := range cases {
+		if isRateLimitErr(tc.err) != tc.expected {
+			t.Errorf("expected %v got %v for %s", tc.expected, !tc.expected, tc.err)
+		}
 	}
 }
 
