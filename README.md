@@ -74,10 +74,6 @@ If you want Codenotify to be able to mention teams, then you need to:
     + GITHUB_TOKEN: ${{ secrets.CODENOTIFY_GITHUB_TOKEN }}
     ```
     
-##### Behavior on forks
-
-Codenotify does not work on forks
-
 ## CODENOTIFY files
 
 CODENOTIFY files contain rules that define who gets notified when files change.
