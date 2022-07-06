@@ -35,22 +35,21 @@ Add `.github/workflows/codenotify.yml` to your repository with the following con
 ```yaml
 name: codenotify
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, ready_for_review]
 
 jobs:
   codenotify:
     runs-on: ubuntu-latest
     name: codenotify
+    permissions:
+      pull-requests: write
     steps:
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - uses: sourcegraph/codenotify@v0.5
         env:
-          # secrets.GITHUB_TOKEN is available by default, but it won't allow CODENOTIFY to mention GitHub teams.
-          # If you want CODENOTIFY to be able to mention teams, then you need to create a personal access token
-          # (https://github.com/settings/tokens) with scopes: repo, read:org.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 #       with:
 #         # Filename in which file subscribers are defined, default is 'CODENOTIFY'
@@ -59,6 +58,22 @@ jobs:
 #         subscriber-threshold: '10'
 ```
 
+##### GITHUB_TOKEN
+
+The default configuration above uses [automatic token authentication](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret), but a limitation with this method of authentication is that Codenotify will not be able to mention teams.
+
+If you want Codenotify to be able to mention teams, then you need to:
+1. Create a [personal access token](https://github.com/settings/tokens) with the following permissions:
+    * `read:org` is necessary to mention teams
+    * `repo` is necessary if you want to use Codenotify with private repositories. Otherwise, `public_repo` is sufficient.
+    * If you are an organization, consider creating the PAT under a separate bot account.
+2. Store the PAT as a secret in your repository or organization (recommend naming this `CODENOTIFY_GITHUB_TOKEN`)
+3. Update `.github/workflows/codenotify.yml` to use the secret you just created. For example:
+    ```diff
+    - GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    + GITHUB_TOKEN: ${{ secrets.CODENOTIFY_GITHUB_TOKEN }}
+    ```
+    
 ## CODENOTIFY files
 
 CODENOTIFY files contain rules that define who gets notified when files change.
