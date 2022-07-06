@@ -341,6 +341,9 @@ func graphql(query string, variables map[string]interface{}, responseData interf
 	}
 
 	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return fmt.Errorf("GITHUB_TOKEN is not set")
+	}
 	req.Header.Set("Authorization", "bearer "+token)
 
 	reqdump, err := httputil.DumpRequestOut(req, true)
