@@ -35,7 +35,7 @@ Add `.github/workflows/codenotify.yml` to your repository with the following con
 ```yaml
 name: codenotify
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, ready_for_review]
 
 jobs:
@@ -60,11 +60,9 @@ jobs:
 
 ##### GITHUB_TOKEN
 
-The default configuration above uses [automatic token authentication](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret), but there are some limitations with this method of authentication:
-* Codenotify will not be able to mention teams.
-* Codenotify will fail when run on repository forks.
+The default configuration above uses [automatic token authentication](https://docs.github.com/en/actions/security-guides/automatic-token-authentication#about-the-github_token-secret), but a limitation with this method of authentication is that Codenotify will not be able to mention teams.
 
-If you want Codenotify to be able to mention teams or if you want Codenotify to be able to run on forks, then you need to:
+If you want Codenotify to be able to mention teams, then you need to:
 1. Create a [personal access token](https://github.com/settings/tokens) with the following permissions:
     * `read:org` is necessary to mention teams
     * `repo` is necessary if you want to use Codenotify with private repositories. Otherwise, `public_repo` is sufficient.
@@ -75,6 +73,10 @@ If you want Codenotify to be able to mention teams or if you want Codenotify to 
     - GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     + GITHUB_TOKEN: ${{ secrets.CODENOTIFY_GITHUB_TOKEN }}
     ```
+    
+##### Behavior on forks
+
+Codenotify does not work on forks
 
 ## CODENOTIFY files
 
