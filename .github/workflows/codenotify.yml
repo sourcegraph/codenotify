@@ -1,7 +1,3 @@
-on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review]
-
 jobs:
   codenotify:
     runs-on: ubuntu-latest
