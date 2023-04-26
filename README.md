@@ -131,8 +131,6 @@ dir/**"         @all-dir
 **/*            @all
 ```
 
-
-
 ## Why use Codenotify?
 
 GitHub projects can create a [CODEOWNERS](https://docs.github.com/en/github/creating-cloning-and-archiving-repositories/about-code-owners) file (inspired by [Chromium's use of OWNERS files](https://chromium.googlesource.com/chromium/src/+/master/docs/code_reviews.md#OWNERS-files)) and GitHub will automatically add reviewers. There are a few downsides to this approach:

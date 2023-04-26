@@ -1,13 +1,11 @@
-FROM golang:1.15-alpine as builder
+FROM golang:1.20-alpine as builder
 
-#ENV CGO_ENABLED=0
 WORKDIR /build
-COPY go.mod go.sum *.go ./
+COPY . .
 
-RUN go build -o codenotify
+RUN go build -o codenotify ./cmd/codenotify
 
-
-FROM alpine:3.12
+FROM alpine:3
 
 # hadolint ignore=DL3018
 RUN apk add --no-cache git
