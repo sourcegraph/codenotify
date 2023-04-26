@@ -12,11 +12,11 @@ import (
 	"net/http/httputil"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/sourcegraph/codenotify"
 )
 
 var verbose io.Writer = os.Stderr
@@ -62,7 +62,7 @@ func testableMain(stdout io.Writer, args []string) error {
 		return fmt.Errorf("error scanning lines from diff: %s\n%s", err, string(diff))
 	}
 
-	notifs, err := notifications(&gitfs{cwd: opts.cwd, rev: opts.baseRef}, paths, opts.filename)
+	notifs, err := notifications(codenotify.NewGitFS(opts.cwd, opts.baseRef), paths, opts.filename)
 	if err != nil {
 		return err
 	}
@@ -457,7 +457,12 @@ func readLines(b []byte) ([]string, error) {
 	return lines, scanner.Err()
 }
 
-func notifications(fs FS, paths []string, notifyFilename string) (map[string][]string, error) {
+func subscribers(fs codenotify.FS, path string, notifyFilename string) ([]string, error) {
+	fmt.Fprintf(verbose, "analyzing subscribers in %s files\n", notifyFilename)
+	return codenotify.Subscribers(fs, path, notifyFilename)
+}
+
+func notifications(fs codenotify.FS, paths []string, notifyFilename string) (map[string][]string, error) {
 	notifications := map[string][]string{}
 	for _, path := range paths {
 		subs, err := subscribers(fs, path, notifyFilename)
@@ -471,75 +476,4 @@ func notifications(fs FS, paths []string, notifyFilename string) (map[string][]s
 	}
 
 	return notifications, nil
-}
-
-func subscribers(fs FS, path string, notifyFilename string) ([]string, error) {
-	fmt.Fprintf(verbose, "analyzing subscribers in %s files\n", notifyFilename)
-	subscribers := []string{}
-
-	parts := strings.Split(path, string(os.PathSeparator))
-	for i := range parts {
-		base := filepath.Join(parts[:i]...)
-		rulefilepath := filepath.Join(base, notifyFilename)
-
-		rulefile, err := fs.Open(rulefilepath)
-		if err != nil {
-			if err == os.ErrNotExist {
-				continue
-			}
-			return nil, err
-		}
-
-		scanner := bufio.NewScanner(rulefile)
-		for scanner.Scan() {
-			rule := scanner.Text()
-			if rule != "" && rule[0] == '#' {
-				// skip comment
-				continue
-			}
-
-			fields := strings.Fields(rule)
-			switch len(fields) {
-			case 0:
-				// skip blank line
-				continue
-			case 1:
-				return nil, fmt.Errorf("expected at least two fields for rule in %s: %s", rulefilepath, rule)
-			}
-
-			rel, err := filepath.Rel(base, path)
-			if err != nil {
-				return nil, err
-			}
-
-			re, err := patternToRegexp(fields[0])
-			if err != nil {
-				return nil, fmt.Errorf("invalid pattern in %s: %s: %w", rulefilepath, rule, err)
-			}
-
-			if re.MatchString(rel) {
-				subscribers = append(subscribers, fields[1:]...)
-			}
-		}
-
-		if err := scanner.Err(); err != nil {
-			return nil, err
-		}
-	}
-
-	return subscribers, nil
-}
-
-func patternToRegexp(pattern string) (*regexp.Regexp, error) {
-	if pattern[len(pattern)-1:] == "/" {
-		pattern += "**"
-	}
-	pattern = regexp.QuoteMeta(pattern)
-	pattern = strings.ReplaceAll(pattern, `/\*\*/`, "/([^/]*/)*")
-	pattern = strings.ReplaceAll(pattern, `\*\*/`, "([^/]+/)*")
-	pattern = strings.ReplaceAll(pattern, `/\*\*`, ".*")
-	pattern = strings.ReplaceAll(pattern, `\*\*`, ".*")
-	pattern = strings.ReplaceAll(pattern, `\*`, "[^/]*")
-	pattern = "^" + pattern + "$"
-	return regexp.Compile(pattern)
 }

@@ -1,4 +1,4 @@
-package main
+package codenotify
 
 import (
 	"bytes"
@@ -18,32 +18,36 @@ type File interface {
 }
 
 // memfile is an in-memory file
-type memfile struct {
+type Memfile struct {
 	*bytes.Buffer
 }
 
-func (m memfile) Close() error {
+func (m Memfile) Close() error {
 	m.Buffer = nil
 	return nil
 }
 
-func (m memfile) Stat() (os.FileInfo, error) {
+func (m Memfile) Stat() (os.FileInfo, error) {
 	return nil, errors.New("memfile does not support stat")
 }
 
-// gitfs implements the FS interface for files at a specific git revision.
-type gitfs struct {
+// Gitfs implements the FS interface for files at a specific git revision.
+type Gitfs struct {
 	cwd string
 	rev string
 }
 
-func (g *gitfs) Open(name string) (File, error) {
+func NewGitFS(cwd string, rev string) *Gitfs {
+	return &Gitfs{cwd: cwd, rev: rev}
+}
+
+func (g *Gitfs) Open(name string) (File, error) {
 	cmd := exec.Command("git", "-C", g.cwd, "show", g.rev+":"+name)
 	buf, err := cmd.Output()
 	if err != nil {
 		return nil, os.ErrNotExist
 	}
-	return memfile{
+	return Memfile{
 		Buffer: bytes.NewBuffer(buf),
 	}, nil
 }
