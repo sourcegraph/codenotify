@@ -1,3 +1,10 @@
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  push: 
+    branches:
+      - 'jh/debug'
+
 jobs:
   codenotify:
     runs-on: ubuntu-latest
