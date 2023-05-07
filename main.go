@@ -103,16 +103,17 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	flags.StringVar(&opts.format, "format", "text", "The format of the output: text or markdown")
 	flags.StringVar(&opts.filename, "filename", "CODENOTIFY", "The filename in which file subscribers are defined")
 	flags.IntVar(&opts.subscriberThreshold, "subscriber-threshold", 0, "The threshold of notifying subscribers")
-	v := *flags.Bool("verbose", false, "Verbose messages printed to stderr")
+	var v bool
+	flags.BoolVar(&v, "verbose", false, "Verbose messages printed to stderr")
+
+	if err := flags.Parse(args); err != nil {
+		return nil, err
+	}
 
 	if v {
 		verbose = os.Stderr
 	} else {
 		verbose = ioutil.Discard
-	}
-
-	if err := flags.Parse(args); err != nil {
-		return nil, err
 	}
 
 	opts.print = func(notifs map[string][]string) error {

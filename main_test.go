@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -124,6 +125,37 @@ func TestMain(t *testing.T) {
 			expectedStdout = strings.ReplaceAll(expectedStdout, "$headRef", headRef)
 			if stdout.String() != expectedStdout {
 				t.Errorf("want stdout:\n%s\ngot:\n%s", expectedStdout, stdout.String())
+			}
+		})
+	}
+}
+
+func TestCliOptions(t *testing.T) {
+	var originalVerbose io.Writer = verbose
+	defer func() { verbose = originalVerbose }()
+	tests := []struct {
+		name    string
+		args    []string
+		verbose io.Writer
+	}{
+		{
+			name:    "no arguments",
+			args:    []string{},
+			verbose: ioutil.Discard,
+		},
+		{
+			name:    "verbose option",
+			args:    []string{"-verbose"},
+			verbose: os.Stderr,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stdout := &bytes.Buffer{}
+			cliOptions(stdout, test.args)
+			if verbose != test.verbose {
+				t.Errorf("expected verbose to be %v; got %v", test.verbose, verbose)
 			}
 		})
 	}
