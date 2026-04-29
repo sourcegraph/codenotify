@@ -1,18 +1,33 @@
-name: Sourcegraph code intelligence
-'on':
-  - push
+name: scip-go
+"on":
+  push:
+    paths:
+      - '**.go'
+      - '**/scip-go.yml'
+
+concurrency:
+  group: ${{ github.workflow }}
+
+permissions:
+  contents: read
+
 jobs:
   scip-go:
+    if: github.repository == 'sourcegraph/codenotify'
     runs-on: ubuntu-latest
-    container: sourcegraph/scip-go:latest
     steps:
-      - uses: actions/checkout@v1
-      - name: Get src-cli
-        run: curl -L https://sourcegraph.com/.api/src-cli/src_linux_amd64 -o /usr/local/bin/src;
-          chmod +x /usr/local/bin/src
-      - name: Set directory to safe for git
-        run: git config --global --add safe.directory $GITHUB_WORKSPACE
-      - name: Generate SCIP data
-        run: scip-go
-      - name: Upload SCIP data
-        run: src code-intel upload -github-token=${{ secrets.GITHUB_TOKEN }} -ignore-upload-failure
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run scip-go and upload
+        uses: sourcegraph/scip-go-action@v2
+        with:
+          sourcegraph-url: https://sourcegraph.sourcegraph.com/
+          sourcegraph-token: ${{ secrets.SRC_ACCESS_TOKEN_S2 }}
+          scip-go-version: v0.2.2
+          upload: true
