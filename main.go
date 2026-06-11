@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -485,7 +486,7 @@ func subscribers(fs FS, path string, notifyFilename string) ([]string, error) {
 
 		rulefile, err := fs.Open(rulefilepath)
 		if err != nil {
-			if err == os.ErrNotExist {
+			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
 			return nil, err
