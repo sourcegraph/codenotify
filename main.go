@@ -142,7 +142,7 @@ func githubActionOptions() (*options, error) {
 		return nil, fmt.Errorf("env var GITHUB_EVENT_PATH not set")
 	}
 
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read GitHub event json %s: %s", path, err)
 	}
@@ -226,7 +226,7 @@ func updateComment(id, body string) error {
 				clientMutationId
 			}
 		}`,
-		map[string]interface{}{
+		map[string]any{
 			"id":   id,
 			"body": body,
 		},
@@ -245,7 +245,7 @@ func addComment(subjectId, body string) error {
 				clientMutationId
 			}
 		}`,
-		map[string]interface{}{
+		map[string]any{
 			"subjectId": subjectId,
 			"body":      body,
 		},
@@ -271,7 +271,7 @@ func commitCount(prNodeID string) (int, error) {
 				}
 			}
 		}`,
-		map[string]interface{}{
+		map[string]any{
 			"nodeId": prNodeID,
 		},
 		&data,
@@ -310,7 +310,7 @@ func existingCommentId(prNodeID string, filename string) (string, error) {
 				}
 			}
 		}`,
-		map[string]interface{}{
+		map[string]any{
 			"nodeId": prNodeID,
 		},
 		&data,
@@ -328,8 +328,8 @@ func existingCommentId(prNodeID string, filename string) (string, error) {
 	return "", nil
 }
 
-func graphql(query string, variables map[string]interface{}, responseData interface{}) error {
-	reqbody, err := json.Marshal(map[string]interface{}{
+func graphql(query string, variables map[string]any, responseData any) error {
+	reqbody, err := json.Marshal(map[string]any{
 		"query":     query,
 		"variables": variables,
 	})
@@ -370,7 +370,7 @@ func graphql(query string, variables map[string]interface{}, responseData interf
 	}
 
 	response := struct {
-		Data   interface{}
+		Data   any
 		Errors []struct {
 			Type    string   `json:"type"`
 			Path    []string `json:"path"`
