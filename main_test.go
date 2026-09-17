@@ -726,3 +726,13 @@ func (m memfs) Open(name string) (File, error) {
 
 	return mf, nil
 }
+
+func (m memfs) Paths(name string) ([]string, error) {
+	paths := []string{}
+	for path := range m {
+		if filepath.Base(path) == name {
+			paths = append(paths, path)
+		}
+	}
+	return paths, nil
+}

@@ -459,9 +459,19 @@ func readLines(b []byte) ([]string, error) {
 }
 
 func notifications(fs FS, paths []string, notifyFilename string) (map[string][]string, error) {
+	ruleFilePaths, err := fs.Paths(notifyFilename)
+	if err != nil {
+		return nil, err
+	}
+
+	ruleFileCache := make(map[string]*ruleset, len(ruleFilePaths))
+	for _, ruleFilePath := range ruleFilePaths {
+		ruleFileCache[ruleFilePath] = nil
+	}
+
 	notifications := map[string][]string{}
 	for _, path := range paths {
-		subs, err := subscribers(fs, path, notifyFilename)
+		subs, err := subscribers(fs, ruleFileCache, path, notifyFilename)
 		if err != nil {
 			return nil, err
 		}
@@ -474,61 +484,108 @@ func notifications(fs FS, paths []string, notifyFilename string) (map[string][]s
 	return notifications, nil
 }
 
-func subscribers(fs FS, path string, notifyFilename string) ([]string, error) {
-	fmt.Fprintf(verbose, "analyzing subscribers in %s files\n", notifyFilename)
+// rule is a single parsed line of a rule file
+type rule struct {
+	pattern     *regexp.Regexp
+	subscribers []string
+}
+
+// ruleset represents a parsed rule file
+type ruleset struct {
+	rules []rule
+}
+
+// subscribers returns the subscribers of every rule matching the given path
+func (r *ruleset) subscribers(path string) []string {
 	subscribers := []string{}
+	for _, rule := range r.rules {
+		if rule.pattern.MatchString(path) {
+			subscribers = append(subscribers, rule.subscribers...)
+		}
+	}
+	return subscribers
+}
+
+// subscribers returns the subscribers to notify about a change to path
+func subscribers(fs FS, ruleFileCache map[string]*ruleset, path string, notifyFilename string) ([]string, error) {
+	seen := map[string]struct{}{}
 
 	parts := strings.Split(path, string(os.PathSeparator))
 	for i := range parts {
 		base := filepath.Join(parts[:i]...)
-		rulefilepath := filepath.Join(base, notifyFilename)
+		ruleFilePath := filepath.Join(base, notifyFilename)
 
-		rulefile, err := fs.Open(rulefilepath)
-		if err != nil {
-			if err == os.ErrNotExist {
-				continue
-			}
-			return nil, err
+		ruleFile, ok := ruleFileCache[ruleFilePath]
+		if !ok {
+			// No rule file in this directory
+			continue
 		}
 
-		scanner := bufio.NewScanner(rulefile)
-		for scanner.Scan() {
-			rule := scanner.Text()
-			if rule != "" && rule[0] == '#' {
-				// skip comment
-				continue
-			}
-
-			fields := strings.Fields(rule)
-			switch len(fields) {
-			case 0:
-				// skip blank line
-				continue
-			case 1:
-				return nil, fmt.Errorf("expected at least two fields for rule in %s: %s", rulefilepath, rule)
-			}
-
-			rel, err := filepath.Rel(base, path)
+		if ruleFile == nil {
+			loaded, err := readRuleset(fs, ruleFilePath)
 			if err != nil {
 				return nil, err
 			}
-
-			re, err := patternToRegexp(fields[0])
-			if err != nil {
-				return nil, fmt.Errorf("invalid pattern in %s: %s: %w", rulefilepath, rule, err)
-			}
-
-			if re.MatchString(rel) {
-				subscribers = append(subscribers, fields[1:]...)
-			}
+			ruleFileCache[ruleFilePath] = loaded
+			ruleFile = loaded
 		}
 
-		if err := scanner.Err(); err != nil {
+		rel, err := filepath.Rel(base, path)
+		if err != nil {
 			return nil, err
+		}
+
+		for _, subscriber := range ruleFile.subscribers(rel) {
+			seen[subscriber] = struct{}{}
 		}
 	}
 
+	subscribers := make([]string, 0, len(seen))
+	for subscriber := range seen {
+		subscribers = append(subscribers, subscriber)
+	}
 	return subscribers, nil
+}
+
+func readRuleset(fs FS, path string) (*ruleset, error) {
+	fmt.Fprintf(verbose, "reading %s\n", path)
+
+	rulefile, err := fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	rules := ruleset{}
+	scanner := bufio.NewScanner(rulefile)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line != "" && line[0] == '#' {
+			// skip comment
+			continue
+		}
+
+		fields := strings.Fields(line)
+		switch len(fields) {
+		case 0:
+			// skip blank line
+			continue
+		case 1:
+			return nil, fmt.Errorf("expected at least two fields for rule in %s: %s", path, line)
+		}
+
+		pattern, err := patternToRegexp(fields[0])
+		if err != nil {
+			return nil, fmt.Errorf("invalid pattern in %s: %s: %w", path, line, err)
+		}
+
+		rules.rules = append(rules.rules, rule{pattern: pattern, subscribers: fields[1:]})
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return &rules, nil
 }
 
 func patternToRegexp(pattern string) (*regexp.Regexp, error) {
