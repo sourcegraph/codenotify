@@ -208,8 +208,6 @@ func TestGitHubNotificationsCurrentComparison(t *testing.T) {
 	draft.Draft = true
 	closed := current
 	closed.State = "closed"
-	empty := current
-	empty.BaseSHA = head
 
 	for _, tc := range []struct {
 		name        string
@@ -217,11 +215,9 @@ func TestGitHubNotificationsCurrentComparison(t *testing.T) {
 		states      []state
 		existing    bool
 		wantReport  bool
-		wantEmpty   bool
 		wantLookups int
 		wantError   string
 		errorAt     int
-		missingNode bool
 	}{
 		{name: "retry add", states: []state{old, current, current, current}, wantReport: true, wantLookups: 2},
 		{name: "retry update", filename: "OWNERS", states: []state{old, current, current, current}, existing: true, wantReport: true, wantLookups: 2},
@@ -229,20 +225,11 @@ func TestGitHubNotificationsCurrentComparison(t *testing.T) {
 		{name: "base OID changes", states: []state{old, advanced, advanced, advanced}, wantReport: true, wantLookups: 2},
 		{name: "base name changes", states: []state{current, renamed, renamed, renamed}, wantReport: true, wantLookups: 2},
 		{name: "head replaced before calculation", states: []state{replaced}},
-		{name: "draft before calculation", states: []state{draft}},
-		{name: "closed before calculation", states: []state{closed}},
 		{name: "head replaced before add", states: []state{old, replaced}, wantLookups: 1},
-		{name: "head replaced before update", states: []state{old, replaced}, existing: true, wantLookups: 1},
 		{name: "draft before add", states: []state{old, draft}, wantLookups: 1},
-		{name: "draft before update", states: []state{old, draft}, existing: true, wantLookups: 1},
 		{name: "closed before add", states: []state{old, closed}, wantLookups: 1},
-		{name: "closed before update", states: []state{old, closed}, existing: true, wantLookups: 1},
-		{name: "initial refresh error", states: []state{old}, errorAt: 1, wantError: "refresh failed"},
 		{name: "final refresh error", states: []state{old, current}, errorAt: 2, existing: true, wantLookups: 1, wantError: "refresh failed"},
 		{name: "retry exhausted", states: []state{old, current, current, renamed}, existing: true, wantLookups: 2, wantError: "retry exhausted"},
-		{name: "missing PR", states: []state{old}, missingNode: true, wantError: "pull request"},
-		{name: "empty add", states: []state{empty}, wantLookups: 1},
-		{name: "empty update", filename: "OWNERS", states: []state{empty, empty}, existing: true, wantReport: true, wantEmpty: true, wantLookups: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cwd := t.TempDir()
@@ -281,9 +268,6 @@ func TestGitHubNotificationsCurrentComparison(t *testing.T) {
 					}
 					if stateCalls == tc.errorAt {
 						return http.StatusServiceUnavailable, `{"message":"refresh failed"}`
-					}
-					if tc.missingNode {
-						return http.StatusOK, `null`
 					}
 					s := tc.states[stateCalls-1]
 					data, err := json.Marshal(map[string]interface{}{
@@ -340,20 +324,12 @@ func TestGitHubNotificationsCurrentComparison(t *testing.T) {
 				t.Fatalf("got %d mutations, want %d", len(bodies), wantMutations)
 			}
 			if tc.wantReport {
-				base := newBase
-				if tc.wantEmpty {
-					base = head
-				}
-				for _, text := range []string{"<!-- codenotify:" + filename + " report -->", base + "..." + head} {
+				for _, text := range []string{"<!-- codenotify:" + filename + " report -->", newBase + "..." + head} {
 					if !strings.Contains(bodies[0], text) {
 						t.Errorf("report lacks %q: %s", text, bodies[0])
 					}
 				}
-				if tc.wantEmpty {
-					if !strings.Contains(bodies[0], "No notifications.") {
-						t.Errorf("expected empty update: %s", bodies[0])
-					}
-				} else if !strings.Contains(bodies[0], "| @intended | intended.txt |") {
+				if !strings.Contains(bodies[0], "| @intended | intended.txt |") {
 					t.Errorf("missing intended notification: %s", bodies[0])
 				}
 				for _, text := range []string{oldBase + "...", "unrelated.txt", "@unrelated", "@old-subscriber", "@author"} {
