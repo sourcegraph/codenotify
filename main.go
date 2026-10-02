@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -17,6 +18,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/google/go-github/v92/github"
 )
 
 var verbose io.Writer = os.Stderr
@@ -51,20 +54,31 @@ func testableMain(stdout io.Writer, args []string) error {
 		return nil
 	}
 
+	if opts.prNodeID != "" {
+		return runGitHubNotifications(opts)
+	}
+	notifs, err := calculateNotifications(opts)
+	if err != nil {
+		return err
+	}
+	return opts.print(notifs)
+}
+
+func calculateNotifications(opts *options) (map[string][]string, error) {
 	commits := opts.baseRef + "..." + opts.headRef
 	diff, err := run("git", "-C", opts.cwd, "diff", "--name-only", commits)
 	if err != nil {
-		return fmt.Errorf("error diffing %s: %w", commits, err)
+		return nil, fmt.Errorf("error diffing %s: %w", commits, err)
 	}
 
 	paths, err := readLines(diff)
 	if err != nil {
-		return fmt.Errorf("error scanning lines from diff: %s\n%s", err, string(diff))
+		return nil, fmt.Errorf("error scanning lines from diff: %s\n%s", err, string(diff))
 	}
 
 	notifs, err := notifications(&gitfs{cwd: opts.cwd, rev: opts.baseRef}, paths, opts.filename)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if opts.author != "" {
@@ -72,7 +86,7 @@ func testableMain(stdout io.Writer, args []string) error {
 		delete(notifs, opts.author)
 	}
 
-	return opts.print(notifs)
+	return notifs, nil
 }
 
 func run(command string, args ...string) ([]byte, error) {
@@ -122,20 +136,6 @@ func cliOptions(stdout io.Writer, args []string) (*options, error) {
 	return &opts, nil
 }
 
-type pullRequest struct {
-	Base struct {
-		Sha string `json:"sha"`
-	} `json:"base"`
-	Head struct {
-		Sha string `json:"sha"`
-	} `json:"head"`
-	NodeID string `json:"node_id"`
-	User   struct {
-		Login string `json:"login"`
-	} `json:"User"`
-	Draft bool `json:"draft"`
-}
-
 func githubActionOptions() (*options, error) {
 	path := os.Getenv("GITHUB_EVENT_PATH")
 	if path == "" {
@@ -147,28 +147,17 @@ func githubActionOptions() (*options, error) {
 		return nil, fmt.Errorf("unable to read GitHub event json %s: %s", path, err)
 	}
 
-	var event struct {
-		PullRequest pullRequest `json:"pull_request"`
-	}
+	var event github.PullRequestEvent
 
 	if err := json.Unmarshal(data, &event); err != nil {
 		return nil, fmt.Errorf("unable to decode GitHub event: %s\n%s", err, string(data))
 	}
 
-	if event.PullRequest.Draft {
-		fmt.Fprintln(verbose, "Not sending notifications for draft pull request.")
-		return nil, nil
+	if event.GetPullRequest().GetNodeID() == "" || event.GetPullRequest().GetHead().GetSHA() == "" {
+		return nil, fmt.Errorf("GitHub event is missing the pull request node ID or head SHA")
 	}
-
-	commitCount, err := commitCount(event.PullRequest.NodeID)
-	if err != nil {
-		return nil, err
-	}
-
-	cwd := os.Getenv("GITHUB_WORKSPACE")
-	_, err = run("git", "-C", cwd, "-c", "protocol.version=2", "fetch", "--deepen", strconv.Itoa(commitCount))
-	if err != nil {
-		return nil, err
+	if event.GetRepo().GetOwner().GetLogin() == "" || event.GetRepo().GetName() == "" || event.GetNumber() == 0 {
+		return nil, fmt.Errorf("GitHub event is missing the repository or pull request number")
 	}
 
 	filename := os.Getenv("INPUT_FILENAME")
@@ -179,40 +168,121 @@ func githubActionOptions() (*options, error) {
 	subscriberThreshold, _ := strconv.Atoi(os.Getenv("INPUT_SUBSCRIBER-THRESHOLD"))
 
 	o := &options{
-		cwd:                 cwd,
+		cwd:                 os.Getenv("GITHUB_WORKSPACE"),
 		format:              "markdown",
 		filename:            filename,
 		subscriberThreshold: subscriberThreshold,
-		baseRef:             event.PullRequest.Base.Sha,
-		headRef:             event.PullRequest.Head.Sha,
-		author:              "@" + event.PullRequest.User.Login,
+		prNodeID:            event.GetPullRequest().GetNodeID(),
+		expectedHead:        event.GetPullRequest().GetHead().GetSHA(),
+		event:               &event,
 	}
-	o.print = commentOnGitHubPullRequest(o, event.PullRequest.NodeID)
 	return o, nil
 }
 
-func commentOnGitHubPullRequest(o *options, prNodeID string) func(map[string][]string) error {
-	return func(notifs map[string][]string) error {
-		comment := bytes.Buffer{}
-		if err := o.writeNotifications(&comment, notifs); err != nil {
-			return err
-		}
+func skipReason(pr *github.PullRequest, expectedHead string) string {
+	if pr.GetHead().GetSHA() != expectedHead {
+		return "pull request head changed"
+	}
+	if pr.GetState() != "open" {
+		return "pull request is no longer open"
+	}
+	if pr.GetDraft() {
+		return "pull request is a draft"
+	}
+	return ""
+}
 
-		id, err := existingCommentId(prNodeID, o.filename)
+func runGitHubNotifications(o *options) error {
+	for attempt := 0; attempt < 2; attempt++ {
+		state, err := currentPullRequest(o.event)
 		if err != nil {
 			return err
 		}
-
-		if id == "" {
-			if len(notifs) == 0 {
-				fmt.Fprintln(verbose, "not adding a comment because there are no notifications to send")
-				return nil
-			}
-			return addComment(prNodeID, comment.String())
+		if reason := skipReason(state, o.expectedHead); reason != "" {
+			fmt.Fprintln(verbose, "skipping notifications:", reason)
+			return nil
 		}
 
-		return updateComment(id, comment.String())
+		o.baseRef, o.headRef = state.GetBase().GetSHA(), state.GetHead().GetSHA()
+		o.author = ""
+		if author := state.GetUser().GetLogin(); author != "" {
+			o.author = "@" + author
+		}
+		if err := preparePullRequestCommits(o.cwd, state); err != nil {
+			return err
+		}
+		publish, err := preparePullRequestComment(o)
+		if err != nil || publish == nil {
+			return err
+		}
+
+		// Validate after all preparation, immediately before the mutation.
+		// GitHub does not provide an atomic state-check-and-comment mutation.
+		current, err := currentPullRequest(o.event)
+		if err != nil {
+			return err
+		}
+		if reason := skipReason(current, o.expectedHead); reason != "" {
+			fmt.Fprintln(verbose, "skipping notifications:", reason)
+			return nil
+		}
+		if current.GetBase().GetRef() == state.GetBase().GetRef() && current.GetBase().GetSHA() == state.GetBase().GetSHA() {
+			return publish()
+		}
 	}
+	return fmt.Errorf("notification retry exhausted: pull request base changed; run Codenotify again")
+}
+
+func preparePullRequestCommits(cwd string, pr *github.PullRequest) error {
+	baseSHA, headSHA := pr.GetBase().GetSHA(), pr.GetHead().GetSHA()
+	depth := pr.GetCommits()
+	if depth < 1 {
+		depth = 1
+	}
+	// Preserve commit-count-based deepening for the checked-out PR head.
+	if _, err := run("git", "-C", cwd, "-c", "protocol.version=2", "fetch", "--deepen", strconv.Itoa(depth)); err != nil {
+		return err
+	}
+	for _, sha := range []string{baseSHA, headSHA} {
+		if _, err := run("git", "-C", cwd, "cat-file", "-e", sha+"^{commit}"); err != nil {
+			// A retargeted base may not be in the checkout's fetch refspec.
+			if _, err := run("git", "-C", cwd, "-c", "protocol.version=2", "fetch", "--deepen", strconv.Itoa(depth), "origin", sha); err != nil {
+				return err
+			}
+		}
+	}
+	if _, err := run("git", "-C", cwd, "merge-base", baseSHA, headSHA); err != nil {
+		return fmt.Errorf("unable to resolve merge base for %s...%s: %w", baseSHA, headSHA, err)
+	}
+	return nil
+}
+
+// preparePullRequestComment returns the pending mutation, or nil for a new empty report.
+// It captures the rendered body so publication does not repeat report preparation.
+func preparePullRequestComment(o *options) (func() error, error) {
+	notifs, err := calculateNotifications(o)
+	if err != nil {
+		return nil, err
+	}
+	comment := bytes.Buffer{}
+	if err := o.writeNotifications(&comment, notifs); err != nil {
+		return nil, err
+	}
+	id, err := existingCommentId(o.prNodeID, o.filename)
+	if err != nil {
+		return nil, err
+	}
+	if id == "" && len(notifs) == 0 {
+		fmt.Fprintln(verbose, "not adding a comment because there are no notifications to send")
+		return nil, nil
+	}
+	prNodeID, body := o.prNodeID, comment.String()
+	return func() error {
+		if id == "" {
+			return addComment(prNodeID, body)
+		}
+		return updateComment(id, body)
+	}, nil
 }
 
 func updateComment(id, body string) error {
@@ -253,31 +323,27 @@ func addComment(subjectId, body string) error {
 	)
 }
 
-func commitCount(prNodeID string) (int, error) {
-	data := struct {
-		Node struct {
-			Commits struct {
-				TotalCount int `json:"totalCount"`
-			} `json:"commits"`
-		} `json:"node"`
-	}{}
-	err := graphql(`
-		query CommitCount ($nodeId: ID!) {
-			node(id: $nodeId) {
-				... on PullRequest {
-					commits {
-						totalCount
-					}
-				}
-			}
-		}`,
-		map[string]interface{}{
-			"nodeId": prNodeID,
-		},
-		&data,
-	)
-
-	return data.Node.Commits.TotalCount, err
+func currentPullRequest(event *github.PullRequestEvent) (*github.PullRequest, error) {
+	opts := []github.ClientOptionsFunc{
+		github.WithAuthToken(os.Getenv("GITHUB_TOKEN")),
+		github.WithHTTPClient(&http.Client{}),
+	}
+	if apiURL := os.Getenv("GITHUB_API_URL"); apiURL != "" {
+		opts = append(opts, github.WithURLs(&apiURL, nil))
+	}
+	client, err := github.NewClient(opts...)
+	if err != nil {
+		return nil, err
+	}
+	repo := event.GetRepo()
+	pr, _, err := client.PullRequests.Get(context.Background(), repo.GetOwner().GetLogin(), repo.GetName(), event.GetNumber())
+	if err != nil {
+		return nil, err
+	}
+	if pr.GetBase().GetRef() == "" || pr.GetBase().GetSHA() == "" || pr.GetHead().GetSHA() == "" {
+		return nil, fmt.Errorf("pull request %d is missing comparison state", event.GetNumber())
+	}
+	return pr, nil
 }
 
 func existingCommentId(prNodeID string, filename string) (string, error) {
@@ -399,6 +465,9 @@ type options struct {
 	filename            string
 	subscriberThreshold int
 	author              string
+	prNodeID            string
+	expectedHead        string
+	event               *github.PullRequestEvent
 	print               func(notifs map[string][]string) error
 }
 

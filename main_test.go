@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -125,6 +127,240 @@ func TestMain(t *testing.T) {
 			expectedStdout = strings.ReplaceAll(expectedStdout, "$headRef", headRef)
 			if stdout.String() != expectedStdout {
 				t.Errorf("want stdout:\n%s\ngot:\n%s", expectedStdout, stdout.String())
+			}
+		})
+	}
+}
+
+// fakeGitHub replaces only the HTTP boundary; Git and report generation stay real.
+type fakeGitHub func(query string, variables map[string]string) (int, string)
+
+func (f fakeGitHub) RoundTrip(req *http.Request) (*http.Response, error) {
+	var request struct {
+		Query     string            `json:"query"`
+		Variables map[string]string `json:"variables"`
+	}
+	if req.Method == http.MethodGet {
+		request.Query = "GET " + req.URL.Path
+	} else if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		return nil, err
+	}
+	status, body := f(request.Query, request.Variables)
+	return &http.Response{StatusCode: status, Header: make(http.Header), Body: ioutil.NopCloser(strings.NewReader(body)), Request: req}, nil
+}
+
+func TestGitHubNotificationsCurrentComparison(t *testing.T) {
+	root := t.TempDir()
+	git := func(dir string, args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Dir = root
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %s\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	write := func(dir, name, body string) {
+		t.Helper()
+		if err := ioutil.WriteFile(filepath.Join(dir, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(message string) string {
+		git(root, "add", ".")
+		git(root, "-c", "user.name=test", "-c", "user.email=test@example.com", "-c", "commit.gpgsign=false", "commit", "-m", message)
+		return git(root, "rev-parse", "HEAD")
+	}
+	git(root, "init")
+	for _, filename := range []string{"CODENOTIFY", "OWNERS"} {
+		write(root, filename, "intended.txt @old-subscriber\nunrelated.txt @unrelated\n")
+	}
+	write(root, "intended.txt", "before")
+	write(root, "unrelated.txt", "before")
+	oldBase := commit("old base")
+	git(root, "branch", "old-base")
+	write(root, "unrelated.txt", "unrelated change")
+	for _, filename := range []string{"CODENOTIFY", "OWNERS"} {
+		write(root, filename, "intended.txt @intended @author\nunrelated.txt @unrelated\n")
+	}
+	common := commit("shared changes")
+	git(root, "checkout", "-b", "new-base")
+	write(root, "base-only.txt", "base change")
+	newBase := commit("new base")
+	git(root, "checkout", "-b", "pr-head", common)
+	write(root, "intended.txt", "intended change")
+	head := commit("PR change")
+
+	type state struct {
+		BaseRef, BaseSHA, HeadSHA, State string
+		Draft                            bool
+	}
+	old := state{BaseRef: "old-base", BaseSHA: oldBase, HeadSHA: head, State: "open"}
+	current := state{BaseRef: "new-base", BaseSHA: newBase, HeadSHA: head, State: "open"}
+	renamed := current
+	renamed.BaseRef = "renamed-base"
+	advanced := old
+	advanced.BaseSHA = newBase
+	replaced := current
+	replaced.HeadSHA = newBase
+	draft := current
+	draft.Draft = true
+	closed := current
+	closed.State = "closed"
+	empty := current
+	empty.BaseSHA = head
+
+	for _, tc := range []struct {
+		name        string
+		filename    string
+		states      []state
+		existing    bool
+		wantReport  bool
+		wantEmpty   bool
+		wantLookups int
+		wantError   string
+		errorAt     int
+		missingNode bool
+	}{
+		{name: "retry add", states: []state{old, current, current, current}, wantReport: true, wantLookups: 2},
+		{name: "retry update", filename: "OWNERS", states: []state{old, current, current, current}, existing: true, wantReport: true, wantLookups: 2},
+		{name: "live base replaces event base", states: []state{current, current}, wantReport: true, wantLookups: 1},
+		{name: "base OID changes", states: []state{old, advanced, advanced, advanced}, wantReport: true, wantLookups: 2},
+		{name: "base name changes", states: []state{current, renamed, renamed, renamed}, wantReport: true, wantLookups: 2},
+		{name: "head replaced before calculation", states: []state{replaced}},
+		{name: "draft before calculation", states: []state{draft}},
+		{name: "closed before calculation", states: []state{closed}},
+		{name: "head replaced before add", states: []state{old, replaced}, wantLookups: 1},
+		{name: "head replaced before update", states: []state{old, replaced}, existing: true, wantLookups: 1},
+		{name: "draft before add", states: []state{old, draft}, wantLookups: 1},
+		{name: "draft before update", states: []state{old, draft}, existing: true, wantLookups: 1},
+		{name: "closed before add", states: []state{old, closed}, wantLookups: 1},
+		{name: "closed before update", states: []state{old, closed}, existing: true, wantLookups: 1},
+		{name: "initial refresh error", states: []state{old}, errorAt: 1, wantError: "refresh failed"},
+		{name: "final refresh error", states: []state{old, current}, errorAt: 2, existing: true, wantLookups: 1, wantError: "refresh failed"},
+		{name: "retry exhausted", states: []state{old, current, current, renamed}, existing: true, wantLookups: 2, wantError: "retry exhausted"},
+		{name: "missing PR", states: []state{old}, missingNode: true, wantError: "pull request"},
+		{name: "empty add", states: []state{empty}, wantLookups: 1},
+		{name: "empty update", filename: "OWNERS", states: []state{empty, empty}, existing: true, wantReport: true, wantEmpty: true, wantLookups: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cwd := t.TempDir()
+			git(root, "clone", "--depth=1", "--single-branch", "--branch=pr-head", "file://"+root, cwd)
+			filename := tc.filename
+			if filename == "" {
+				filename = "CODENOTIFY"
+			}
+			eventPath := filepath.Join(t.TempDir(), "event.json")
+			event := fmt.Sprintf(`{"number":123,"repository":{"name":"repo","owner":{"login":"test"}},"pull_request":{"node_id":"PR_test","head":{"sha":%q},"base":{"sha":%q},"user":{"login":"event-author"}}}`, head, oldBase)
+			if err := ioutil.WriteFile(eventPath, []byte(event), 0600); err != nil {
+				t.Fatal(err)
+			}
+			for name, value := range map[string]string{
+				"GITHUB_ACTIONS": "true", "GITHUB_EVENT_PATH": eventPath,
+				"GITHUB_WORKSPACE": cwd, "GITHUB_GRAPHQL_URL": "https://github.test/graphql",
+				"GITHUB_API_URL": "https://github.test/api/v3",
+				"GITHUB_TOKEN":   "test-only-token", "INPUT_FILENAME": filename,
+				"INPUT_SUBSCRIBER-THRESHOLD": "0",
+			} {
+				t.Setenv(name, value)
+			}
+			transport, originalVerbose := http.DefaultTransport, verbose
+			t.Cleanup(func() { http.DefaultTransport, verbose = transport, originalVerbose })
+			verbose = ioutil.Discard
+			var calls []string
+			var bodies []string
+			stateCalls, lookups := 0, 0
+			http.DefaultTransport = fakeGitHub(func(query string, variables map[string]string) (int, string) {
+				switch {
+				case query == "GET /api/v3/repos/test/repo/pulls/123":
+					calls = append(calls, "state")
+					stateCalls++
+					if stateCalls > len(tc.states) {
+						t.Fatal("more state refreshes than allowed")
+					}
+					if stateCalls == tc.errorAt {
+						return http.StatusServiceUnavailable, `{"message":"refresh failed"}`
+					}
+					if tc.missingNode {
+						return http.StatusOK, `null`
+					}
+					s := tc.states[stateCalls-1]
+					data, err := json.Marshal(map[string]interface{}{
+						"base":  map[string]string{"ref": s.BaseRef, "sha": s.BaseSHA},
+						"head":  map[string]string{"sha": s.HeadSHA},
+						"state": s.State, "draft": s.Draft,
+						"user": map[string]string{"login": "author"}, "commits": 3,
+					})
+					if err != nil {
+						t.Fatal(err)
+					}
+					return http.StatusOK, string(data)
+				case strings.Contains(query, "query GetPullRequestComments"):
+					calls = append(calls, "comments")
+					lookups++
+					if tc.existing {
+						return http.StatusOK, fmt.Sprintf(`{"data":{"node":{"comments":{"nodes":[{"id":"comment_test","body":%q,"author":{"login":"bot"}}]}}}}`, "<!-- codenotify:"+filename+" report -->\nold report")
+					}
+					return http.StatusOK, `{"data":{"node":{"comments":{"nodes":[]}}}}`
+				case strings.Contains(query, "mutation"):
+					if len(calls) < 2 || calls[len(calls)-1] != "state" || calls[len(calls)-2] != "comments" {
+						t.Error("comment mutation was not immediately preceded by a final state check after comment lookup")
+					}
+					calls = append(calls, "mutation")
+					operation, idKey, id := "AddComment", "subjectId", "PR_test"
+					if tc.existing {
+						operation, idKey, id = "UpdateComment", "id", "comment_test"
+					}
+					if !strings.Contains(query, "mutation "+operation) || variables[idKey] != id {
+						t.Errorf("wrong comment mutation: %s %v", query, variables)
+					}
+					bodies = append(bodies, variables["body"])
+				default:
+					t.Fatalf("unexpected GraphQL query: %s", query)
+				}
+				return http.StatusOK, `{"data":{}}`
+			})
+
+			err := testableMain(ioutil.Discard, nil)
+			if tc.wantError == "" && err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+			if tc.wantError != "" && (err == nil || !strings.Contains(err.Error(), tc.wantError)) {
+				t.Errorf("want error containing %q, got %v", tc.wantError, err)
+			}
+			if stateCalls != len(tc.states) || lookups != tc.wantLookups {
+				t.Errorf("state queries=%d, calculations=%d; want %d, %d", stateCalls, lookups, len(tc.states), tc.wantLookups)
+			}
+			wantMutations := 0
+			if tc.wantReport {
+				wantMutations = 1
+			}
+			if len(bodies) != wantMutations {
+				t.Fatalf("got %d mutations, want %d", len(bodies), wantMutations)
+			}
+			if tc.wantReport {
+				base := newBase
+				if tc.wantEmpty {
+					base = head
+				}
+				for _, text := range []string{"<!-- codenotify:" + filename + " report -->", base + "..." + head} {
+					if !strings.Contains(bodies[0], text) {
+						t.Errorf("report lacks %q: %s", text, bodies[0])
+					}
+				}
+				if tc.wantEmpty {
+					if !strings.Contains(bodies[0], "No notifications.") {
+						t.Errorf("expected empty update: %s", bodies[0])
+					}
+				} else if !strings.Contains(bodies[0], "| @intended | intended.txt |") {
+					t.Errorf("missing intended notification: %s", bodies[0])
+				}
+				for _, text := range []string{oldBase + "...", "unrelated.txt", "@unrelated", "@old-subscriber", "@author"} {
+					if strings.Contains(bodies[0], text) {
+						t.Errorf("stale or excluded content %q: %s", text, bodies[0])
+					}
+				}
 			}
 		})
 	}

@@ -28,6 +28,10 @@ When run as a GitHub Action, Codenotify will post a comment that mentions people
 
 If a comment already exists, it will update the existing comment.
 
+The action reads the current PR base and head from GitHub. It uses those exact commits for the diff and reads subscription files from that base. Immediately before adding or updating a comment, it checks the PR state again. It skips publication if the head changed or the PR is closed or draft. If the base changed, it calculates a new report and retries once. A second base change stops the action with a retry-exhausted error. A fresh run may be required.
+
+The final check and comment write are not an atomic operation. The PR can still change between them. Per-PR cancellation and replacement runs can reduce this risk, but cannot recall mentions that GitHub has already delivered.
+
 #### Setup
 
 Add `.github/workflows/codenotify.yml` to your repository with the following contents:
