@@ -1,4 +1,4 @@
-FROM golang:1.15-alpine as builder
+FROM golang:1.26.7-alpine AS builder
 
 #ENV CGO_ENABLED=0
 WORKDIR /build
